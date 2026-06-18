@@ -20,38 +20,42 @@ export function SceneToolbar({
     <div className="map-command-bar map-controls-only">
       <div className="map-toolbar-actions">
         <div className="command-group">
-          <button
-            className={`icon-chip ${showLayers ? 'active' : ''}`}
-            title="Toggle industrial layers"
-            onClick={onToggleLayers}
-            type="button"
-          >
-            <Layers3 size={16} />
-          </button>
-          <button
-            className={`icon-chip ${showMiniMap ? 'active' : ''}`}
-            title="Toggle mini-map"
-            onClick={onToggleMiniMap}
-            type="button"
-          >
-            <Map size={16} />
-          </button>
-          <button
-            className={`icon-chip ${showTimeline ? 'active' : ''}`}
-            title="Toggle timeline drawer"
-            onClick={onToggleTimeline}
-            type="button"
-          >
-            <Wrench size={16} />
-          </button>
-          <button
-            className={`icon-chip ${showSections ? 'active' : ''}`}
-            title="Toggle plant sections"
-            onClick={onToggleSections}
-            type="button"
-          >
-            <Focus size={16} />
-          </button>
+          {!editLayoutMode ? (
+            <>
+              <button
+                className={`icon-chip ${showLayers ? 'active' : ''}`}
+                title="Toggle industrial layers"
+                onClick={onToggleLayers}
+                type="button"
+              >
+                <Layers3 size={16} />
+              </button>
+              <button
+                className={`icon-chip ${showMiniMap ? 'active' : ''}`}
+                title="Toggle mini-map"
+                onClick={onToggleMiniMap}
+                type="button"
+              >
+                <Map size={16} />
+              </button>
+              <button
+                className={`icon-chip ${showTimeline ? 'active' : ''}`}
+                title="Toggle timeline drawer"
+                onClick={onToggleTimeline}
+                type="button"
+              >
+                <Wrench size={16} />
+              </button>
+              <button
+                className={`icon-chip ${showSections ? 'active' : ''}`}
+                title="Toggle plant sections"
+                onClick={onToggleSections}
+                type="button"
+              >
+                <Focus size={16} />
+              </button>
+            </>
+          ) : null}
           {canEdit ? (
             <button
               className={`icon-chip ${editLayoutMode ? 'active' : ''}`}

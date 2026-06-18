@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from 'react'
-import { Boxes, CopyPlus, Eye, EyeOff, Focus, Layers3, Link2, MousePointerClick, RotateCcw, Save, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Boxes, CopyPlus, Link2, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { getNodeParameterValue, getNodePosition, resolveRoutePoints } from '../data/defaultConfig'
-import { getStencilDefinition, nextTag } from '../data/stencils'
+import { getStencilDefinition, nextLayoutPosition, nextTag } from '../data/stencils'
 import { getStencilLibrary } from '../services/plantlensApi'
 import { useProject } from '../store/projectStore'
 
@@ -9,6 +9,20 @@ const SCALE = 42
 const PADDING = 48
 const STATUS_OPTIONS = ['inactive', 'normal', 'origin', 'alarm', 'downstream']
 const STARTER_STENCIL_IDS = [
+  'oipRollerConveyor',
+  'oipRollerModule',
+  'oipRollerCorner',
+  'oipChainTransfer',
+  'oipDiverter',
+  'oipBladeStop',
+  'oipDiffuseSensor',
+  'oipLaserSensor',
+  'oipPushButton',
+  'oipGantry',
+  'oipSixAxisRobot',
+  'oipWallPanel',
+  'oipIndustrialLight',
+  'oipIndustrialFan',
   'tank',
   'pump',
   'flowSensor',
@@ -32,7 +46,6 @@ const CONNECTION_TYPES = [
   { id: 'alarmDependency', label: 'Alarm Dependency' },
   { id: 'utilityLine', label: 'Utility Line' },
 ]
-
 function snap(value, step = 0.25) {
   return Math.round(value / step) * step
 }
@@ -60,14 +73,52 @@ function buildProjectWithPendingTag(project, activeLayoutId, tag) {
   }
 }
 
+function isNearPosition(a, b, xGap = 3.1, zGap = 1.45) {
+  return Math.abs(a[0] - b[0]) < xGap && Math.abs(a[2] - b[2]) < zGap
+}
+
+function StencilPreview({ stencil, style = null }) {
+  const portCount = stencil.ports?.length ?? 0
+  const anchorCount = stencil.anchors?.length ?? 0
+  const isCadModel = stencil.renderer === 'openIndustryAsset' || stencil.source === 'Open Industry Project'
+
+  return (
+    <aside className="stencil-preview-popover" style={style} aria-label={`${stencil.label} preview`}>
+      <div className={`stencil-preview-visual ${stencil.family}`} data-cad={isCadModel ? 'true' : 'false'}>
+        <span className="preview-shadow" />
+        <span className="preview-base" />
+        <span className="preview-body" />
+        <span className="preview-accent" />
+        {stencil.family === 'sensor' ? <span className="preview-sensor-head" /> : null}
+        {stencil.family === 'pump' || stencil.id.includes('Pump') ? <span className="preview-rotor" /> : null}
+      </div>
+      <div className="stencil-preview-copy">
+        <span>{isCadModel ? '3D CAD model' : `${stencil.family} stencil`}</span>
+        <strong>{stencil.label}</strong>
+        <small>{stencil.tagPrefix} prefix | {portCount} ports | {anchorCount} anchors</small>
+      </div>
+    </aside>
+  )
+}
+
 export function LayoutWorkbench() {
   const { state, dispatch, activeLayout, selectedNode, activeLayoutIssues } = useProject()
   const dragRef = useRef(null)
+  const canvasScrollRef = useRef(null)
+  const sidebarRef = useRef(null)
+  const [canvasViewport, setCanvasViewport] = useState({ width: 0, height: 0 })
+  const [draggingStencilId, setDraggingStencilId] = useState(null)
+  const [dropPreview, setDropPreview] = useState(null)
+  const [previewState, setPreviewState] = useState(null)
   const backendStencilLibrary = useMemo(() => getStencilLibrary(), [])
   const libraryStencils = useMemo(
     () =>
       STARTER_STENCIL_IDS.map((stencilId) => state.project.library[stencilId] ?? backendStencilLibrary.find((stencil) => stencil.id === stencilId)).filter(Boolean),
     [backendStencilLibrary, state.project.library],
+  )
+  const cadStencilCount = useMemo(
+    () => libraryStencils.filter((stencil) => stencil.renderer === 'openIndustryAsset' || stencil.source === 'Open Industry Project').length,
+    [libraryStencils],
   )
   const [selectedStencilId, setSelectedStencilId] = useState(() => libraryStencils[0]?.id ?? 'genericMachine')
   const [connectionType, setConnectionType] = useState('processFlow')
@@ -81,6 +132,16 @@ export function LayoutWorkbench() {
   })
   const availableStencilIds = useMemo(() => new Set(libraryStencils.map((stencil) => stencil.id)), [libraryStencils])
   const resolvedSelectedStencilId = availableStencilIds.has(selectedStencilId) ? selectedStencilId : (libraryStencils[0]?.id ?? 'genericMachine')
+
+  const showStencilPreview = (stencilId, event) => {
+    if (!event?.currentTarget || !sidebarRef.current) return
+    const itemRect = event.currentTarget.getBoundingClientRect()
+    const sidebarRect = sidebarRef.current.getBoundingClientRect()
+    setPreviewState({
+      stencilId,
+      top: Math.max(46, Math.min(itemRect.top - sidebarRect.top - 8, sidebarRect.height - 158)),
+    })
+  }
 
   const selectStencil = (stencilId) => {
     const stencil = getStencilDefinition(stencilId, state.project.library)
@@ -142,8 +203,27 @@ export function LayoutWorkbench() {
     )
   }, [activeLayout, state.project.library])
 
-  const canvasWidth = Math.max(760, Math.round((bounds.maxX - bounds.minX) * SCALE + PADDING * 2))
-  const canvasHeight = Math.max(300, Math.round((bounds.maxZ - bounds.minZ) * SCALE + PADDING * 2))
+  useEffect(() => {
+    const element = canvasScrollRef.current
+    if (!element) return undefined
+
+    const updateSize = () => {
+      setCanvasViewport({
+        width: Math.floor(element.clientWidth),
+        height: Math.floor(element.clientHeight),
+      })
+    }
+
+    updateSize()
+    const observer = new ResizeObserver(updateSize)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+
+  const contentWidth = Math.round((bounds.maxX - bounds.minX) * SCALE + PADDING * 2)
+  const contentHeight = Math.round((bounds.maxZ - bounds.minZ) * SCALE + PADDING * 2)
+  const canvasWidth = Math.max(760, canvasViewport.width, contentWidth)
+  const canvasHeight = Math.max(300, canvasViewport.height, contentHeight)
 
   const projectToCanvas = (point) => ({
     x: (point[0] - bounds.minX) * SCALE + PADDING,
@@ -159,16 +239,33 @@ export function LayoutWorkbench() {
     ]
   }
 
-  const selectedNodeStencil = selectedNode ? getStencilDefinition(selectedNode.stencilId, state.project.library) : null
-  const selectedNodeParameters = selectedNodeStencil?.parameters ?? []
-  const selectedNodeRoutes = selectedNode
-    ? activeLayout.routes.filter((route) => route.from.nodeId === selectedNode.id || route.to.nodeId === selectedNode.id)
-    : []
+  const findClearPosition = (desiredPosition, nodeIdToIgnore = null) => {
+    const existingPositions = activeLayout.nodes
+      .filter((node) => node.id !== nodeIdToIgnore)
+      .map((node) => getNodePosition(node, activeLayout, state.project.library))
+
+    let candidate = desiredPosition
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const blocked = existingPositions.some((position) => isNearPosition(candidate, position))
+      if (!blocked) return candidate
+
+      const column = (attempt % 4) + 1
+      const row = Math.floor(attempt / 4)
+      candidate = [
+        snap(desiredPosition[0] + column * 1.5),
+        desiredPosition[1],
+        snap(desiredPosition[2] + (row + 1) * 1.0),
+      ]
+    }
+
+    return candidate
+  }
 
   const startDrag = (event, node) => {
     dispatch({ type: 'select-node', nodeId: node.id })
-    if (state.project.views.activeTool !== 'move' || node.attachments.length > 0) return
+    if (!['select', 'move'].includes(state.project.views.activeTool)) return
 
+    event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     const start = getNodePosition(node, activeLayout, state.project.library)
 
@@ -192,6 +289,7 @@ export function LayoutWorkbench() {
         type: 'move-node',
         nodeId: dragRef.current.nodeId,
         position: dragRef.current.current,
+        detachAttachments: true,
         trackHistory: false,
       })
     }
@@ -202,6 +300,7 @@ export function LayoutWorkbench() {
           type: 'move-node',
           nodeId: dragRef.current.nodeId,
           position: dragRef.current.current,
+          detachAttachments: true,
           trackHistory: true,
         })
       }
@@ -222,6 +321,7 @@ export function LayoutWorkbench() {
   }
 
   const insertStencil = () => {
+    const position = findClearPosition(nextLayoutPosition(activeLayout))
     dispatch({
       type: 'add-stencil-node',
       stencilId: selectedStencil.id,
@@ -230,6 +330,7 @@ export function LayoutWorkbench() {
         label: draft.label,
         status: draft.status,
         parameters: draft.parameters,
+        position,
       },
     })
 
@@ -240,10 +341,19 @@ export function LayoutWorkbench() {
     })
   }
 
+  const createEmptyLayout = () => {
+    setConnectionSourceId(null)
+    dispatch({ type: 'add-layout' })
+    dispatch({ type: 'set-active-tool', tool: 'select' })
+  }
+
   const dropStencil = (event) => {
     event.preventDefault()
-    const stencilId = event.dataTransfer.getData('application/plantlens-stencil') || resolvedSelectedStencilId
+    const stencilId = event.dataTransfer.getData('application/plantlens-stencil') || draggingStencilId || resolvedSelectedStencilId
     const stencil = getStencilDefinition(stencilId, state.project.library)
+    const position = findClearPosition(canvasToProject(event))
+    setDropPreview(null)
+    setDraggingStencilId(null)
     dispatch({
       type: 'add-stencil-node',
       stencilId,
@@ -251,9 +361,25 @@ export function LayoutWorkbench() {
         tag: nextTag(stencilId, state.project, state.project.library),
         label: stencil.label.replace(' / Labeling', ''),
         status: stencil.family === 'sensor' ? 'normal' : 'inactive',
-        position: canvasToProject(event),
+        position,
       },
     })
+  }
+
+  const handleCanvasDragOver = (event) => {
+    event.preventDefault()
+    const stencilId = draggingStencilId || event.dataTransfer.getData('application/plantlens-stencil') || resolvedSelectedStencilId
+    const position = findClearPosition(canvasToProject(event))
+    setDropPreview({
+      stencilId,
+      position,
+      point: projectToCanvas(position),
+    })
+  }
+
+  const clearDropPreview = (event) => {
+    if (event.currentTarget.contains(event.relatedTarget)) return
+    setDropPreview(null)
   }
 
   const handleNodeClick = (node) => {
@@ -274,33 +400,72 @@ export function LayoutWorkbench() {
     setConnectionSourceId(null)
   }
 
-  const updateSelectedField = (field, value) => {
-    if (!selectedNode) return
-    dispatch({ type: 'update-node-field', nodeId: selectedNode.id, field, value })
-  }
-
-  const updateSelectedParameter = (parameter, value) => {
-    if (!selectedNode) return
-    dispatch({ type: 'set-parameter', nodeId: selectedNode.id, parameter, value })
-  }
-
   return (
     <section className="workbench">
-      <aside className="workbench-sidebar">
+      <aside className="workbench-sidebar" ref={sidebarRef}>
         <header className="subpanel-header">
           <div>
             <span>Stencil library</span>
-            <strong>Reusable equipment blocks</strong>
+            <strong>{libraryStencils.length} components</strong>
           </div>
           <Boxes size={16} />
         </header>
 
+        <section className="library-catalog">
+          <div className="library-catalog-meta">
+            <div>
+              <span>Catalog</span>
+              <strong>Drag into canvas</strong>
+            </div>
+            <small>{cadStencilCount} CAD</small>
+          </div>
+
+          <div className="library-list">
+            {libraryStencils.map((stencil) => {
+              const isCadModel = stencil.renderer === 'openIndustryAsset' || stencil.source === 'Open Industry Project'
+              const previewOpen = previewState?.stencilId === stencil.id
+
+              return (
+                <div className="library-item-wrap" key={stencil.id}>
+                  <button
+                    className={`library-item ${resolvedSelectedStencilId === stencil.id ? 'active' : ''}`}
+                    data-cad={isCadModel ? 'true' : 'false'}
+                    data-stencil-id={stencil.id}
+                    data-preview-open={previewOpen ? 'true' : 'false'}
+                    onClick={() => selectStencil(stencil.id)}
+                    onPointerEnter={(event) => showStencilPreview(stencil.id, event)}
+                    onPointerLeave={() => setPreviewState(null)}
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData('application/plantlens-stencil', stencil.id)
+                      event.dataTransfer.effectAllowed = 'copy'
+                      setDraggingStencilId(stencil.id)
+                      setSelectedStencilId(stencil.id)
+                      setPreviewState(null)
+                    }}
+                    onDragEnd={() => {
+                      setDraggingStencilId(null)
+                      setDropPreview(null)
+                    }}
+                  >
+                    <span>{stencil.tagPrefix}</span>
+                    <strong>{stencil.label}</strong>
+                    <small>{isCadModel ? '3D CAD model' : stencil.family}</small>
+                    <em>{isCadModel ? 'CAD' : '2D'}</em>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
         <section className="library-editor">
           <div className="library-editor-header">
             <div>
-              <span>{selectedStencil.family}</span>
+              <span>{selectedStencil.source ?? selectedStencil.family}</span>
               <strong>{selectedStencil.label}</strong>
             </div>
+            <small>{selectedStencil.renderer === 'openIndustryAsset' ? '3D model ready' : 'Schematic model ready'}</small>
           </div>
 
           <label className="library-field">
@@ -355,47 +520,55 @@ export function LayoutWorkbench() {
               <RotateCcw size={15} />
             </button>
             <button type="button" className="library-insert" onClick={insertStencil}>
-              Insert stencil
+              Insert model
             </button>
           </div>
         </section>
 
-        <div className="library-list">
-          {libraryStencils.map((stencil) => (
-            <button
-              key={stencil.id}
-              className={`library-item ${resolvedSelectedStencilId === stencil.id ? 'active' : ''}`}
-              onClick={() => selectStencil(stencil.id)}
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.setData('application/plantlens-stencil', stencil.id)
-                event.dataTransfer.effectAllowed = 'copy'
-              }}
-              title={`Configure ${stencil.label}`}
-            >
-              <span>{stencil.tagPrefix}</span>
-              <strong>{stencil.label}</strong>
-              <small>{stencil.family}</small>
-            </button>
-          ))}
-        </div>
+        {previewState ? (
+          <StencilPreview
+            stencil={getStencilDefinition(previewState.stencilId, state.project.library)}
+            style={{ top: previewState.top }}
+          />
+        ) : null}
       </aside>
 
       <section className="workbench-main">
         <header className="workbench-header">
           <div className="layout-meta">
             <span>Active layout</span>
-            <input
-              key={activeLayout.id}
-              className="layout-title-input"
-              defaultValue={activeLayout.name}
-              onBlur={(event) => dispatch({ type: 'rename-layout', name: event.target.value })}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.currentTarget.blur()
-                }
-              }}
-            />
+            <div className="layout-name-row">
+              <input
+                key={activeLayout.id}
+                className="layout-title-input"
+                defaultValue={activeLayout.name}
+                onBlur={(event) => dispatch({ type: 'rename-layout', name: event.target.value })}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.currentTarget.blur()
+                  }
+                }}
+              />
+              <button
+                className="library-insert compact-action"
+                type="button"
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                  createEmptyLayout()
+                }}
+                onClick={(event) => event.preventDefault()}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    createEmptyLayout()
+                  }
+                }}
+                title="Create a new empty layout tab"
+              >
+                <Plus size={14} />
+                New empty
+              </button>
+            </div>
           </div>
           <div className="workbench-actions">
             <select
@@ -427,11 +600,12 @@ export function LayoutWorkbench() {
           </div>
         </header>
 
-        <div className="workbench-canvas-scroll">
+        <div className="workbench-canvas-scroll" ref={canvasScrollRef}>
           <div
-            className={`workbench-canvas ${state.project.views.showGrid ? 'show-grid' : ''}`}
+            className={`workbench-canvas ${state.project.views.showGrid ? 'show-grid' : ''} ${dropPreview ? 'drop-active' : ''}`}
             style={{ width: canvasWidth, height: canvasHeight }}
-            onDragOver={(event) => event.preventDefault()}
+            onDragOver={handleCanvasDragOver}
+            onDragLeave={clearDropPreview}
             onDrop={dropStencil}
           >
             <svg className="route-overlay" viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}>
@@ -449,6 +623,21 @@ export function LayoutWorkbench() {
                 )
               })}
             </svg>
+
+            {!activeLayout.nodes.length ? (
+              <div className="empty-design-dropzone">
+                <strong>Empty industrial layout</strong>
+                <span>Drag equipment models from the stencil library into this factory map.</span>
+                <small>Select dropped equipment to edit tag, label, status, live-value mapping, alarm limits, maintenance notes, and component parameters.</small>
+              </div>
+            ) : null}
+
+            {dropPreview ? (
+              <div className="layout-drop-preview" style={{ left: dropPreview.point.x, top: dropPreview.point.y }}>
+                <span>{getStencilDefinition(dropPreview.stencilId, state.project.library).tagPrefix}</span>
+                <strong>{getStencilDefinition(dropPreview.stencilId, state.project.library).label}</strong>
+              </div>
+            ) : null}
 
             {activeLayout.nodes.map((node) => {
               const point = projectToCanvas(getNodePosition(node, activeLayout, state.project.library))
@@ -480,220 +669,7 @@ export function LayoutWorkbench() {
         </div>
       </section>
 
-      <aside className="workbench-rail">
-        <header className="subpanel-header">
-          <div>
-            <span>Configuration</span>
-            <strong>{selectedNode ? selectedNode.tag : 'Select equipment'}</strong>
-          </div>
-          <MousePointerClick size={16} />
-        </header>
-
-        {selectedNode ? (
-          <section className="equipment-config-panel">
-            <label className="library-field">
-              <span>Tag name</span>
-              <input value={selectedNode.tag} onChange={(event) => updateSelectedField('tag', event.target.value)} />
-            </label>
-            <label className="library-field">
-              <span>Equipment type</span>
-              <input value={selectedNodeStencil?.label ?? selectedNode.stencilId} readOnly />
-            </label>
-            <label className="library-field">
-              <span>Label</span>
-              <input value={selectedNode.label} onChange={(event) => updateSelectedField('label', event.target.value)} />
-            </label>
-            <label className="library-field">
-              <span>Status</span>
-              <select value={selectedNode.status} onChange={(event) => updateSelectedField('status', event.target.value)}>
-                {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-            </label>
-            <label className="library-field">
-              <span>Process area</span>
-              <select value={selectedNode.layerId ?? 'process'} onChange={(event) => updateSelectedField('layerId', event.target.value)}>
-                {activeLayout.layers.map((layer) => (
-                  <option key={layer.id} value={layer.id}>{layer.label}</option>
-                ))}
-              </select>
-            </label>
-
-            <div className="config-field-grid">
-              <label className="library-field">
-                <span>Normal operating range</span>
-                <input
-                  value={selectedNode.overrides.parameters['Normal Operating Range'] ?? ''}
-                  placeholder={selectedNodeParameters[0] ? `${selectedNodeParameters[0]} nominal` : 'Nominal range'}
-                  onChange={(event) => updateSelectedParameter('Normal Operating Range', event.target.value)}
-                />
-              </label>
-              <label className="library-field">
-                <span>Alarm limit</span>
-                <input
-                  value={selectedNode.overrides.parameters['Alarm Limit'] ?? ''}
-                  placeholder="High/low limit"
-                  onChange={(event) => updateSelectedParameter('Alarm Limit', event.target.value)}
-                />
-              </label>
-              <label className="library-field">
-                <span>Sensor value mapping</span>
-                <input
-                  value={selectedNode.overrides.parameters['Sensor Value Mapping'] ?? ''}
-                  placeholder="Tag source or historian point"
-                  onChange={(event) => updateSelectedParameter('Sensor Value Mapping', event.target.value)}
-                />
-              </label>
-              <label className="library-field">
-                <span>Maintenance notes</span>
-                <textarea
-                  value={selectedNode.overrides.parameters['Maintenance Notes'] ?? ''}
-                  placeholder="Inspection, spare, or PM note"
-                  onChange={(event) => updateSelectedParameter('Maintenance Notes', event.target.value)}
-                />
-              </label>
-            </div>
-
-            <button className="library-insert full-width" type="button" onClick={() => dispatch({ type: 'set-active-tool', tool: 'select' })}>
-              <Save size={15} />
-              Save equipment
-            </button>
-
-            <div className="route-manager">
-              <div className="route-manager-title">
-                <span>Structured connections</span>
-                <strong>{selectedNodeRoutes.length} linked</strong>
-              </div>
-              {selectedNodeRoutes.length ? (
-                selectedNodeRoutes.map((route) => {
-                  const peerNodeId = route.from.nodeId === selectedNode.id ? route.to.nodeId : route.from.nodeId
-                  const peer = activeLayout.nodes.find((node) => node.id === peerNodeId)
-                  return (
-                    <div className="route-manager-card" key={route.id}>
-                      <div className="route-manager-row">
-                        <span>{route.connectionType ?? route.medium}</span>
-                        <strong>{route.from.nodeId === selectedNode.id ? 'to' : 'from'} {peer?.tag ?? 'Unknown'}</strong>
-                        <button className="icon-chip danger" type="button" onClick={() => dispatch({ type: 'delete-route', routeId: route.id })}>
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                      <label className="library-field compact">
-                        <span>Connection label</span>
-                        <input
-                          value={route.label ?? ''}
-                          placeholder="Product feed, PLC signal, utility air"
-                          onChange={(event) => dispatch({ type: 'update-route-field', routeId: route.id, field: 'label', value: event.target.value })}
-                        />
-                      </label>
-                      <div className="route-edit-grid">
-                        <label className="library-field compact">
-                          <span>Type</span>
-                          <select
-                            value={route.connectionType ?? 'processFlow'}
-                            onChange={(event) => dispatch({ type: 'update-route-field', routeId: route.id, field: 'connectionType', value: event.target.value })}
-                          >
-                            {CONNECTION_TYPES.map((type) => (
-                              <option key={type.id} value={type.id}>{type.label}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="library-field compact">
-                          <span>Direction</span>
-                          <select
-                            value={route.direction ?? 'forward'}
-                            onChange={(event) => dispatch({ type: 'update-route-field', routeId: route.id, field: 'direction', value: event.target.value })}
-                          >
-                            <option value="forward">Source to target</option>
-                            <option value="reverse">Target to source</option>
-                            <option value="bidirectional">Bidirectional</option>
-                          </select>
-                        </label>
-                        <label className="library-field compact">
-                          <span>Source</span>
-                          <select
-                            value={route.from.nodeId}
-                            onChange={(event) => dispatch({ type: 'update-route-field', routeId: route.id, field: 'fromNodeId', value: event.target.value })}
-                          >
-                            {activeLayout.nodes.map((node) => (
-                              <option key={node.id} value={node.id}>{node.tag}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="library-field compact">
-                          <span>Target</span>
-                          <select
-                            value={route.to.nodeId}
-                            onChange={(event) => dispatch({ type: 'update-route-field', routeId: route.id, field: 'toNodeId', value: event.target.value })}
-                          >
-                            {activeLayout.nodes.map((node) => (
-                              <option key={node.id} value={node.id}>{node.tag}</option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                    </div>
-                  )
-                })
-              ) : (
-                <div className="route-manager-empty">Use Connect mode, click source equipment, then click destination equipment.</div>
-              )}
-            </div>
-          </section>
-        ) : (
-          <div className="config-empty">
-            Drag a stencil into the canvas or click equipment to configure it.
-          </div>
-        )}
-
-        <header className="subpanel-header">
-          <div>
-            <span>Layers</span>
-            <strong>Visibility and isolation</strong>
-          </div>
-          <Layers3 size={16} />
-        </header>
-
-        <div className="layer-list">
-          {activeLayout.layers.map((layer) => (
-            <div className="layer-row" key={layer.id}>
-              <button className={`layer-chip ${state.project.views.isolatedLayerId === layer.id ? 'active' : ''}`} onClick={() => dispatch({ type: 'isolate-layer', layerId: layer.id })}>
-                <Focus size={14} />
-                <span>{layer.label}</span>
-              </button>
-              <button className="icon-chip" onClick={() => dispatch({ type: 'toggle-layer-visibility', layerId: layer.id })} title={`Toggle ${layer.label}`}>
-                {layer.visible ? <Eye size={14} /> : <EyeOff size={14} />}
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <header className="subpanel-header secondary">
-          <div>
-            <span>Validation</span>
-            <strong>{activeLayoutIssues.length ? `${activeLayoutIssues.length} open checks` : 'Layout is clean'}</strong>
-          </div>
-        </header>
-        <div className="validation-list">
-          {activeLayoutIssues.length ? (
-            activeLayoutIssues.map((issue) => (
-              <button
-                key={issue.id}
-                className={`validation-item ${issue.severity}`}
-                onClick={() => dispatch({ type: 'select-node', nodeId: issue.entityId.startsWith('route-') ? null : issue.entityId })}
-              >
-                <span>{issue.severity}</span>
-                <strong>{issue.message}</strong>
-              </button>
-            ))
-          ) : (
-            <div className="validation-item ready">
-              <span>ready</span>
-              <strong>Ports, tags, and attachments are currently valid.</strong>
-            </div>
-          )}
-        </div>
-      </aside>
     </section>
   )
 }
+

@@ -1,3 +1,5 @@
+import { openIndustryStencils } from './openIndustryLibrary'
+
 function createDefaults(parameters, values) {
   return parameters.reduce((defaults, parameter) => {
     defaults[parameter] = values[parameter] ?? 'Ready'
@@ -573,6 +575,7 @@ export const stencilCatalog = [
       ),
     },
   }),
+  ...openIndustryStencils.map(createStencilDefinition),
   createStencilDefinition({
     id: 'genericMachine',
     family: 'machine',

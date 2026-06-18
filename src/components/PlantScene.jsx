@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { ContactShadows, Environment, Html, OrbitControls } from '@react-three/drei'
+import { ContactShadows, Html, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { getNodeParameterValue, getNodePosition } from '../data/defaultConfig'
 import { buildClusterGroups } from '../data/presentationModel'
@@ -30,24 +30,26 @@ function Bottles() {
   )
 }
 
-function PlantFloor({ showGrid }) {
+function PlantFloor({ showGrid, empty = false }) {
   return (
     <group>
       <mesh position={[0, -0.05, 0]} receiveShadow>
-        <boxGeometry args={[18.4, 0.06, 6.7]} />
-        <meshStandardMaterial color="#f4f6f5" roughness={0.96} />
+        <boxGeometry args={empty ? [15.2, 0.035, 5.4] : [18.4, 0.06, 6.7]} />
+        <meshStandardMaterial color={empty ? '#f8faf9' : '#f4f6f5'} roughness={0.96} transparent={empty} opacity={empty ? 0.72 : 1} />
       </mesh>
-      {[
-        [0, 1.35, 16.2, 0.035, 0.92],
-        [-3.2, -1.85, 5.2, 0.035, 1.1],
-        [4.4, -1.65, 6.8, 0.035, 1.05],
-      ].map(([x, z, width, height, depth]) => (
-        <mesh key={`${x}-${z}`} position={[x, 0.01, z]} receiveShadow>
-          <boxGeometry args={[width, height, depth]} />
-          <meshStandardMaterial color="#dce3e1" roughness={0.9} transparent opacity={0.42} />
-        </mesh>
-      ))}
-      {showGrid ? <gridHelper args={[18, 18, '#d6dcdb', '#ebefee']} position={[0, 0.02, 0]} /> : null}
+      {!empty
+        ? [
+            [0, 1.35, 16.2, 0.035, 0.92],
+            [-3.2, -1.85, 5.2, 0.035, 1.1],
+            [4.4, -1.65, 6.8, 0.035, 1.05],
+          ].map(([x, z, width, height, depth]) => (
+            <mesh key={`${x}-${z}`} position={[x, 0.01, z]} receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#dce3e1" roughness={0.9} transparent opacity={0.42} />
+            </mesh>
+          ))
+        : null}
+      {showGrid ? <gridHelper args={[empty ? 14 : 18, empty ? 14 : 18, '#d6dcdb', '#ebefee']} position={[0, 0.02, 0]} /> : null}
     </group>
   )
 }
@@ -187,6 +189,7 @@ export function PlantScene({
   onFocusNode,
   mapLayers,
   onViewportChange,
+  editLayoutMode = false,
 }) {
   const controlsRef = useRef(null)
   const [viewState, setViewState] = useState(() => ({
@@ -268,7 +271,9 @@ export function PlantScene({
   const visibleRoutes = layout.routes.filter((route) => visibleLayers.has(route.layerId))
   const visibleAnnotations = layout.annotations.filter((annotation) => visibleLayers.has(annotation.layerId))
   const clusters = useMemo(() => buildClusterGroups(layout), [layout])
-  const showClusters = currentZoom < 56
+  const isEmptyLayout = layout.nodes.length === 0 && layout.routes.length === 0
+  const showDemoContext = layout.kind === 'packaging' && !isEmptyLayout
+  const showClusters = !editLayoutMode && visibleNodes.length > 3 && currentZoom < 56
 
   const handleControlsChange = () => {
     if (!controlsRef.current) return
@@ -289,6 +294,7 @@ export function PlantScene({
     >
       <color attach="background" args={['#f7f8f8']} />
       <ambientLight intensity={0.78} />
+      <hemisphereLight args={['#f7fbff', '#d7dedc', 0.76]} />
       <directionalLight position={[4, 8, 5]} intensity={1.35} castShadow />
       <OrbitControls
         ref={controlsRef}
@@ -315,25 +321,26 @@ export function PlantScene({
         target={viewState.target}
         onChange={handleControlsChange}
       />
-      <Environment preset="city" />
-      <PlantFloor showGrid={project.views.showGrid} />
-      <IndustrialDetails />
-      {mapLayers.processFlow ? <FlowPath layout={layout} routes={visibleRoutes} library={project.library} /> : null}
-      {layout.kind === 'packaging' ? <Bottles /> : null}
+      <PlantFloor showGrid={project.views.showGrid} empty={!showDemoContext} />
+      {showDemoContext ? <IndustrialDetails /> : null}
+      {mapLayers.processFlow && !isEmptyLayout ? <FlowPath layout={layout} routes={visibleRoutes} library={project.library} /> : null}
+      {showDemoContext ? <Bottles /> : null}
       {mapLayers.safety ? <SafetyZones nodes={visibleNodes.filter((node) => ['origin', 'impacted'].includes(node.status))} /> : null}
-      {visibleNodes.map((node) => (
-        <Equipment
-          key={node.id}
-          node={node}
-          layout={layout}
-          library={project.library}
-          selected={selectedNode?.id === node.id}
-          value={getNodeParameterValue(node, node.headlineMetric) ?? 'Live'}
-          onSelect={onSelect}
-          mapLayers={mapLayers}
-          showLabels={!showClusters}
-        />
-      ))}
+      <Suspense fallback={null}>
+        {visibleNodes.map((node) => (
+          <Equipment
+            key={node.id}
+            node={node}
+            layout={layout}
+            library={project.library}
+            selected={selectedNode?.id === node.id}
+            value={getNodeParameterValue(node, node.headlineMetric) ?? 'Live'}
+            onSelect={onSelect}
+            mapLayers={mapLayers}
+            showLabels={!showClusters}
+          />
+        ))}
+      </Suspense>
       {!showClusters ? <Callouts layout={layout} annotations={visibleAnnotations} library={project.library} /> : null}
       {showClusters ? <ClusterMarkers clusters={clusters} onFocusNode={onFocusNode ?? onSelect} /> : null}
       <ContactShadows position={[0, 0.02, 0]} opacity={0.25} blur={2.8} scale={14} />

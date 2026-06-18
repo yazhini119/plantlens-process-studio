@@ -16,6 +16,7 @@ import {
   TankSymbol,
   ValveSymbol,
 } from './EquipmentSymbols'
+import { OpenIndustryAssetSymbol } from './OpenIndustryAssetSymbol'
 
 export const equipmentRegistry = {
   tank: TankSymbol,
@@ -34,5 +35,6 @@ export const equipmentRegistry = {
   capper: CapperSymbol,
   packaging: PackagingSymbol,
   packagingLabeling: PackagingSymbol,
+  openIndustryAsset: OpenIndustryAssetSymbol,
   genericMachine: GenericMachineSymbol,
 }

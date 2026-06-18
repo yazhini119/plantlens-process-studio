@@ -141,6 +141,17 @@ function Workspace() {
     }
   }
 
+  const handleCreateLayout = () => {
+    handleRoleChange('engineer')
+    setOperatingMode('normal')
+    setShowTimeline(false)
+    setShowLayers(false)
+    setShowSections(false)
+    dispatch({ type: 'add-layout' })
+    dispatch({ type: 'set-active-tool', tool: 'select' })
+    dispatch({ type: 'send-scene-command', command: 'fit' })
+  }
+
   const handleToggleEditLayout = () => {
     if (userRole !== 'engineer') {
       handleRoleChange('engineer')
@@ -169,9 +180,10 @@ function Workspace() {
         layoutSaved={layoutSaved}
         userRole={userRole}
         onRoleChange={handleRoleChange}
+        onCreateLayout={handleCreateLayout}
       />
       <main className={`app-shell ${editLayoutMode ? 'edit-layout-open' : ''}`}>
-        <section className={`scene-panel ${equipmentDetails ? 'equipment-open' : ''}`}>
+        <section className={`scene-panel ${!editLayoutMode && equipmentDetails ? 'equipment-open' : ''}`}>
           <PlantScene
             project={state.project}
             layout={presentedLayout}
@@ -181,6 +193,7 @@ function Workspace() {
             onFocusNode={focusNode}
             mapLayers={mapLayers}
             onViewportChange={setSceneViewport}
+            editLayoutMode={editLayoutMode}
           />
 
           <SceneToolbar
@@ -197,59 +210,63 @@ function Workspace() {
             canEdit={userRole === 'engineer'}
           />
 
-          <KpiStrip items={kpis} />
+          {!editLayoutMode ? (
+            <>
+              <KpiStrip items={kpis} />
 
-          <CalmCard
-            layout={presentedLayout}
-            selectedNode={presentedSelectedNode}
-            issues={activeLayoutIssues}
-            onFocusOrigin={handleFocusOrigin}
-            onFocusAffected={handleFocusAffected}
-            onShowHistory={handleShowHistory}
-          />
+              <CalmCard
+                layout={presentedLayout}
+                selectedNode={presentedSelectedNode}
+                issues={activeLayoutIssues}
+                onFocusOrigin={handleFocusOrigin}
+                onFocusAffected={handleFocusAffected}
+                onShowHistory={handleShowHistory}
+              />
 
-          <MapSidebar
-            layout={presentedLayout}
-            selectedDetails={equipmentDetails}
-            mapLayers={mapLayers}
-            onToggleLayer={(layerId) => setMapLayers((current) => ({ ...current, [layerId]: !current[layerId] }))}
-            onClearSelection={() => dispatch({ type: 'select-node', nodeId: null })}
-            onFocusOrigin={handleFocusOrigin}
-            onFocusAffected={handleFocusAffected}
-            onShowHistory={handleShowHistory}
-            clusters={clusters}
-            onFocusNode={focusNode}
-            showLayers={showLayers}
-            showSections={showSections}
-          />
+              <MapSidebar
+                layout={presentedLayout}
+                selectedDetails={equipmentDetails}
+                mapLayers={mapLayers}
+                onToggleLayer={(layerId) => setMapLayers((current) => ({ ...current, [layerId]: !current[layerId] }))}
+                onClearSelection={() => dispatch({ type: 'select-node', nodeId: null })}
+                onFocusOrigin={handleFocusOrigin}
+                onFocusAffected={handleFocusAffected}
+                onShowHistory={handleShowHistory}
+                clusters={clusters}
+                onFocusNode={focusNode}
+                showLayers={showLayers}
+                showSections={showSections}
+              />
 
-          <MiniMap
-            layout={presentedLayout}
-            library={state.project.library}
-            selectedNodeId={presentedSelectedNode?.id}
-            sceneViewport={sceneViewport}
-            onFocusNode={focusNode}
-            collapsed={!showMiniMap}
-            onToggle={() => setShowMiniMap((current) => !current)}
-          />
+              <MiniMap
+                layout={presentedLayout}
+                library={state.project.library}
+                selectedNodeId={presentedSelectedNode?.id}
+                sceneViewport={sceneViewport}
+                onFocusNode={focusNode}
+                collapsed={!showMiniMap}
+                onToggle={() => setShowMiniMap((current) => !current)}
+              />
 
-          <div ref={timelineRef}>
-            <TimelineRail
-              items={timeline}
-              highlighted={timelineHighlighted}
-              collapsed={!showTimeline}
-              onToggle={() => setShowTimeline((current) => !current)}
-            />
-          </div>
+              <div ref={timelineRef}>
+                <TimelineRail
+                  items={timeline}
+                  highlighted={timelineHighlighted}
+                  collapsed={!showTimeline}
+                  onToggle={() => setShowTimeline((current) => !current)}
+                />
+              </div>
 
-          <RoleViewPanel
-            role={userRole}
-            layout={presentedLayout}
-            kpis={kpis}
-            selectedDetails={equipmentDetails}
-            onShowHistory={handleShowHistory}
-            onFocusAffected={handleFocusAffected}
-          />
+              <RoleViewPanel
+                role={userRole}
+                layout={presentedLayout}
+                kpis={kpis}
+                selectedDetails={equipmentDetails}
+                onShowHistory={handleShowHistory}
+                onFocusAffected={handleFocusAffected}
+              />
+            </>
+          ) : null}
         </section>
 
         {userRole === 'engineer' && editLayoutMode ? (

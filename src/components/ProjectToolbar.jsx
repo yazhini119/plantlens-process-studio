@@ -9,6 +9,7 @@ import {
   Search,
   ScanSearch,
   ShieldCheck,
+  Trash2,
   Undo2,
 } from 'lucide-react'
 import { useProject } from '../store/projectStore'
@@ -40,16 +41,23 @@ export function ProjectToolbar({
   layoutSaved,
   userRole,
   onRoleChange,
+  onCreateLayout,
 }) {
   const { state, dispatch, canUndo, canRedo, activeLayoutIssues } = useProject()
   const ready = activeLayoutIssues.length === 0
   const engineerView = userRole === 'engineer'
+  const canDeleteLayout = state.project.layouts.length > 1
 
   return (
     <header className="project-toolbar">
       <div className="toolbar-brand">
-        <span>PlantLens</span>
-        <strong>Process Studio</strong>
+        <span className="plantlens-logo-mark" aria-hidden="true">
+          <i />
+        </span>
+        <div>
+          <span>PlantLens</span>
+          <strong>Process Studio</strong>
+        </div>
       </div>
 
       <div className="toolbar-layouts">
@@ -64,8 +72,21 @@ export function ProjectToolbar({
             <strong>{layout.name}</strong>
           </button>
         ))}
-        <button className="icon-chip" onClick={() => dispatch({ type: 'add-layout' })} title="Create a new process layout">
+        <button
+          className="icon-chip new-layout-chip"
+          onClick={() => (onCreateLayout ? onCreateLayout() : dispatch({ type: 'add-layout' }))}
+          title="Create an empty industrial layout tab"
+        >
           <Plus size={16} />
+          <span>New layout</span>
+        </button>
+        <button
+          className="icon-chip delete-layout-chip danger"
+          onClick={() => dispatch({ type: 'delete-layout' })}
+          title="Delete active layout tab"
+          disabled={!canDeleteLayout}
+        >
+          <Trash2 size={15} />
         </button>
       </div>
 

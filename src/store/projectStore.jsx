@@ -317,7 +317,9 @@ function reducer(state, action) {
       return commitProject(state, (project) => {
         const layout = getActiveLayout(project)
         const node = layout.nodes.find((entry) => entry.id === action.nodeId)
-        if (!node || node.attachments.length) return project
+        if (!node) return project
+        if (action.detachAttachments) node.attachments = []
+        if (node.attachments.length) return project
         node.transform.position = action.position
         return project
       }, { trackHistory: action.trackHistory !== false })
@@ -327,8 +329,8 @@ function reducer(state, action) {
         const layout = getActiveLayout(project)
         const stencil = getStencilDefinition(action.stencilId, project.library)
         const selectedNode = getSelectedNode(project, layout)
-        const attachToSelection = selectedNode && canAttachStencilToNode(stencil.id, selectedNode, project.library)
         const payload = action.payload ?? {}
+        const attachToSelection = payload.attachToSelection === true && selectedNode && canAttachStencilToNode(stencil.id, selectedNode, project.library)
         const id = `${stencil.id}-${Date.now().toString(36)}`
         const defaultLabel = stencil.label.replace(' / Labeling', '')
         const defaultParameters = buildNodeParameters(stencil.id, project.library)
@@ -392,6 +394,25 @@ function reducer(state, action) {
         project.layouts.push(layout)
         project.views.activeLayoutId = layout.id
         project.views.selectedIds = []
+        project.views.activeTool = 'select'
+        project.views.showGrid = true
+        project.views.isolatedLayerId = null
+        return project
+      })
+
+    case 'delete-layout':
+      return commitProject(state, (project) => {
+        if (project.layouts.length <= 1) return project
+        const activeLayoutId = action.layoutId ?? project.views.activeLayoutId
+        const index = project.layouts.findIndex((layout) => layout.id === activeLayoutId)
+        if (index < 0) return project
+
+        project.layouts = project.layouts.filter((layout) => layout.id !== activeLayoutId)
+        const fallback = project.layouts[Math.max(0, index - 1)] ?? project.layouts[0]
+        project.views.activeLayoutId = fallback.id
+        project.views.selectedIds = []
+        project.views.activeTool = 'select'
+        project.views.isolatedLayerId = null
         return project
       })
 
