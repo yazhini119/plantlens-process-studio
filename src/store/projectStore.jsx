@@ -26,8 +26,8 @@ function clone(value) {
 function getViewportDefaults() {
   const width = typeof window === 'undefined' ? 1440 : window.innerWidth
   return {
-    cardPosition: { x: 12, y: 56 },
-    drawerPosition: { x: Math.max(12, width - 360), y: 56 },
+    cardPosition: { x: 16, y: 118 },
+    drawerPosition: { x: Math.max(12, width - 360), y: 112 },
   }
 }
 
@@ -124,6 +124,31 @@ function updateAnnotationTag(layout, nodeId, tag, status) {
   annotation.note = status === 'origin' ? '(Origin)' : annotation.note === '(Origin)' ? '' : annotation.note
 }
 
+function getFirstPort(stencil, direction) {
+  return stencil.ports.find((port) => port.direction === direction)?.id ?? stencil.ports[0]?.id ?? 'port'
+}
+
+function routeMediumFromConnectionType(connectionType) {
+  const mediumMap = {
+    processFlow: 'liquid',
+    signal: 'signal',
+    power: 'power',
+    alarmDependency: 'signal',
+    utilityLine: 'air',
+  }
+  return mediumMap[connectionType] ?? 'liquid'
+}
+
+function routeStyleFromConnectionType(connectionType) {
+  return connectionType === 'signal' || connectionType === 'alarmDependency' || connectionType === 'utilityLine'
+    ? { dashed: true }
+    : {}
+}
+
+function routeStateFromConnectionType(connectionType) {
+  return connectionType === 'alarmDependency' ? 'alarm' : 'active'
+}
+
 const initialViewport = getViewportDefaults()
 
 const initialState = {
@@ -203,6 +228,91 @@ function reducer(state, action) {
         return project
       })
 
+    case 'update-node-field':
+      return commitProject(state, (project) => {
+        const layout = getActiveLayout(project)
+        const node = layout.nodes.find((entry) => entry.id === action.nodeId)
+        if (!node) return project
+        if (action.field === 'tag') {
+          node.tag = action.value
+          updateAnnotationTag(layout, node.id, node.tag, node.status)
+          return project
+        }
+        if (action.field === 'label') {
+          node.label = action.value
+          return project
+        }
+        if (action.field === 'status') {
+          node.status = action.value
+          updateAnnotationTag(layout, node.id, node.tag, node.status)
+          return project
+        }
+        if (action.field === 'layerId') {
+          node.layerId = action.value
+        }
+        return project
+      })
+
+    case 'delete-selected-node':
+      return commitProject(state, (project) => {
+        const layout = getActiveLayout(project)
+        const nodeId = project.views.selectedIds[0]
+        if (!nodeId) return project
+        layout.nodes = layout.nodes.filter((node) => node.id !== nodeId)
+        layout.routes = layout.routes.filter((route) => route.from.nodeId !== nodeId && route.to.nodeId !== nodeId)
+        layout.annotations = layout.annotations.filter((annotation) => annotation.nodeId !== nodeId)
+        project.views.selectedIds = []
+        return project
+      })
+
+    case 'delete-route':
+      return commitProject(state, (project) => {
+        const layout = getActiveLayout(project)
+        layout.routes = layout.routes.filter((route) => route.id !== action.routeId)
+        return project
+      })
+
+    case 'add-route-between-nodes':
+      return commitProject(state, (project) => {
+        const layout = getActiveLayout(project)
+        const fromNode = layout.nodes.find((node) => node.id === action.fromNodeId)
+        const toNode = layout.nodes.find((node) => node.id === action.toNodeId)
+        if (!fromNode || !toNode || fromNode.id === toNode.id) return project
+        const fromStencil = getStencilDefinition(fromNode.stencilId, project.library)
+        const toStencil = getStencilDefinition(toNode.stencilId, project.library)
+        layout.routes.push({
+          id: `route-${Date.now().toString(36)}`,
+          from: { nodeId: fromNode.id, portId: action.fromPortId ?? getFirstPort(fromStencil, 'out') },
+          to: { nodeId: toNode.id, portId: action.toPortId ?? getFirstPort(toStencil, 'in') },
+          medium: routeMediumFromConnectionType(action.connectionType),
+          segments: [],
+          state: routeStateFromConnectionType(action.connectionType),
+          style: routeStyleFromConnectionType(action.connectionType),
+          connectionType: action.connectionType ?? 'processFlow',
+          label: action.label ?? '',
+          direction: 'forward',
+        })
+        return project
+      })
+
+    case 'update-route-field':
+      return commitProject(state, (project) => {
+        const layout = getActiveLayout(project)
+        const route = layout.routes.find((entry) => entry.id === action.routeId)
+        if (!route) return project
+        if (action.field === 'label') route.label = action.value
+        if (action.field === 'direction') route.direction = action.value
+        if (action.field === 'connectionType') {
+          route.connectionType = action.value
+          route.medium = routeMediumFromConnectionType(action.value)
+          route.state = routeStateFromConnectionType(action.value)
+          route.style = routeStyleFromConnectionType(action.value)
+        }
+        if (action.field === 'fromNodeId') route.from.nodeId = action.value
+        if (action.field === 'toNodeId') route.to.nodeId = action.value
+        return project
+      })
+
     case 'move-node':
       return commitProject(state, (project) => {
         const layout = getActiveLayout(project)
@@ -218,23 +328,32 @@ function reducer(state, action) {
         const stencil = getStencilDefinition(action.stencilId, project.library)
         const selectedNode = getSelectedNode(project, layout)
         const attachToSelection = selectedNode && canAttachStencilToNode(stencil.id, selectedNode, project.library)
+        const payload = action.payload ?? {}
         const id = `${stencil.id}-${Date.now().toString(36)}`
+        const defaultLabel = stencil.label.replace(' / Labeling', '')
+        const defaultParameters = buildNodeParameters(stencil.id, project.library)
         const node = {
           id,
           stencilId: stencil.id,
-          tag: nextTag(stencil.id, project, project.library),
-          label: stencil.label.replace(' / Labeling', ''),
-          status: stencil.family === 'sensor' ? 'normal' : 'inactive',
+          tag: payload.tag?.trim() || nextTag(stencil.id, project, project.library),
+          label: payload.label?.trim() || defaultLabel,
+          status: payload.status ?? (stencil.family === 'sensor' ? 'normal' : 'inactive'),
           headlineMetric: stencil.headlineMetric,
           transform: {
-            position: attachToSelection ? [0, 0.4, 0] : nextLayoutPosition(layout),
+            position: payload.position ?? (attachToSelection ? [0, 0.4, 0] : nextLayoutPosition(layout)),
             rotation: [0, 0, 0],
             scale: [1, 1, 1],
           },
-          layerId: stencil.family === 'sensor' ? 'instrumentation' : 'process',
-          overrides: { parameters: buildNodeParameters(stencil.id, project.library) },
+          layerId:
+            payload.layerId ??
+            (stencil.family === 'sensor'
+              ? 'instrumentation'
+              : (payload.status ?? (stencil.family === 'sensor' ? 'normal' : 'inactive')) === 'inactive'
+                ? 'context'
+                : 'process'),
+          overrides: { parameters: { ...defaultParameters, ...(payload.parameters ?? {}) } },
           attachments: attachToSelection ? [{ targetNodeId: selectedNode.id, anchorId: 'instrument', offset: [0.18, 0.14, -0.12] }] : [],
-          description: `${stencil.label} stencil added from the reusable equipment library.`,
+          description: payload.description ?? `${stencil.label} stencil added from the reusable equipment library.`,
         }
 
         layout.nodes.push(node)

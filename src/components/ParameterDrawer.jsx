@@ -18,6 +18,7 @@ export function ParameterDrawer() {
     const drawer = event.currentTarget.closest('.parameter-drawer')
     if (!drawer) return
 
+    event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     const rect = drawer.getBoundingClientRect()
     const startX = event.clientX
@@ -47,13 +48,20 @@ export function ParameterDrawer() {
 
   return (
     <aside className={`parameter-drawer ${dragging ? 'dragging' : ''}`} style={{ left: drawerPosition.x, top: drawerPosition.y }}>
-      <div className="drawer-header" onPointerDown={startDrag}>
-        <GripHorizontal size={16} />
-        <div>
+      <div className="drawer-header">
+        <div className="drawer-handle" onPointerDown={startDrag}>
+          <GripHorizontal size={16} />
           <span>{selectedNode.tag}</span>
           <strong>{selectedNode.label} parameters</strong>
         </div>
-        <button title="Close parameter details" onClick={() => dispatch({ type: 'select-node', nodeId: null })}><X size={18} /></button>
+        <button
+          type="button"
+          title="Close parameter details"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => dispatch({ type: 'select-node', nodeId: null })}
+        >
+          <X size={18} />
+        </button>
       </div>
       <p>{selectedNode.description}</p>
       <div className="parameter-list">

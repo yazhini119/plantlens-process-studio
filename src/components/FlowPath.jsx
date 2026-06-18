@@ -1,12 +1,13 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { resolveRoutePoints } from '../data/defaultConfig'
 
 const routePalette = {
-  inactive: { color: '#cfd7d5', radius: 0.034, opacity: 0.48 },
-  active: { color: '#ffb21e', radius: 0.058, opacity: 1 },
-  downstream: { color: '#f4b51f', radius: 0.046, opacity: 1 },
-  alarm: { color: '#ef7f37', radius: 0.062, opacity: 1 },
+  inactive: { color: '#cfd7d5', radius: 0.034, opacity: 0.42, particle: '#dfe4e2', speed: 0.05 },
+  active: { color: '#f0ac1b', radius: 0.058, opacity: 1, particle: '#ffe39a', speed: 0.16 },
+  downstream: { color: '#efb23a', radius: 0.046, opacity: 1, particle: '#fff0c0', speed: 0.11 },
+  alarm: { color: '#d94a35', radius: 0.062, opacity: 1, particle: '#ffd6b8', speed: 0.07 },
 }
 
 function Tube({ points, color, radius = 0.052, opacity = 1 }) {
@@ -20,7 +21,32 @@ function Tube({ points, color, radius = 0.052, opacity = 1 }) {
   )
 }
 
-function DashedFlow({ points, color, radius }) {
+function FlowParticles({ points, color, speed, count = 3 }) {
+  const curve = useMemo(() => new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(...point))), [points])
+  const refs = useRef([])
+
+  useFrame(({ clock }) => {
+    refs.current.forEach((mesh, index) => {
+      if (!mesh) return
+      const t = (clock.elapsedTime * speed + index / count) % 1
+      const point = curve.getPointAt(t)
+      mesh.position.copy(point)
+    })
+  })
+
+  return (
+    <>
+      {Array.from({ length: count }).map((_, index) => (
+        <mesh key={index} ref={(element) => { refs.current[index] = element }}>
+          <sphereGeometry args={[0.07, 12, 10]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
+        </mesh>
+      ))}
+    </>
+  )
+}
+
+function DashedFlow({ points, color, radius, particle, speed }) {
   const segments = []
   for (let i = 0; i < points.length - 1; i += 1) {
     const start = new THREE.Vector3(...points[i])
@@ -40,6 +66,7 @@ function DashedFlow({ points, color, radius }) {
       {segments.map(([a, b], index) => (
         <Tube key={`${a.join('-')}-${index}`} points={[a, b]} color={color} radius={radius} />
       ))}
+      <FlowParticles points={points} color={particle} speed={speed} count={2} />
     </>
   )
 }
@@ -53,10 +80,15 @@ export function FlowPath({ layout, library, routes }) {
         const palette = routePalette[route.state] ?? routePalette.inactive
 
         if (route.style?.dashed || route.state === 'downstream') {
-          return <DashedFlow key={route.id} points={points} color={palette.color} radius={palette.radius} />
+          return <DashedFlow key={route.id} points={points} color={palette.color} radius={palette.radius} particle={palette.particle} speed={palette.speed} />
         }
 
-        return <Tube key={route.id} points={points} color={palette.color} radius={palette.radius} opacity={palette.opacity} />
+        return (
+          <group key={route.id}>
+            <Tube points={points} color={palette.color} radius={palette.radius} opacity={palette.opacity} />
+            {route.state !== 'inactive' ? <FlowParticles points={points} color={palette.particle} speed={palette.speed} /> : null}
+          </group>
+        )
       })}
     </>
   )

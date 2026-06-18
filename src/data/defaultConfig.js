@@ -21,6 +21,38 @@ function vector3(value, fallback = [0, 0, 0]) {
   return Array.isArray(value) && value.length === 3 ? value.map((entry) => Number(entry) || 0) : fallback
 }
 
+const STENCIL_GROUND_Y = {
+  tank: 0.34,
+  pump: 0.44,
+  motor: 0.41,
+  flowSensor: 0.46,
+  pressureSensor: 0.39,
+  temperatureSensor: 0.39,
+  valve: 0.12,
+  mixer: 0.34,
+  heatExchanger: 0.38,
+  compressor: 0.41,
+  column: 0.33,
+  conveyor: 0.29,
+  skid: 0.42,
+  filler: 0.45,
+  capper: 0.45,
+  packaging: 0.14,
+  genericMachine: 0.36,
+}
+
+function getStableGroundY(node, library = projectStencilLibrary) {
+  const stencil = getStencilDefinition(node.stencilId ?? node.model ?? 'genericMachine', library)
+  const scale = vector3(node.transform?.scale, [1, 1, 1])
+  const baseGround = STENCIL_GROUND_Y[stencil.id] ?? STENCIL_GROUND_Y.genericMachine
+  return baseGround * Math.max(0.1, scale[1] || 1)
+}
+
+function stabilizeNodePosition(node, position, library = projectStencilLibrary) {
+  if (node.attachments?.length) return position
+  return [position[0], getStableGroundY(node, library), position[2]]
+}
+
 function buildNode({
   id,
   stencilId,
@@ -41,7 +73,10 @@ function buildNode({
     label,
     status,
     transform: {
-      position: vector3(transform?.position, [0, 0.58, 0]),
+      position: stabilizeNodePosition(
+        { stencilId, transform, attachments },
+        vector3(transform?.position, [0, 0.58, 0]),
+      ),
       rotation: vector3(transform?.rotation, [0, 0, 0]),
       scale: vector3(transform?.scale, [1, 1, 1]),
     },
@@ -539,6 +574,7 @@ export const defaultConfig = normalizeProjectDocument({
 
 function normalizeNode(node, library, index = 0) {
   const stencil = getStencilDefinition(node.stencilId ?? node.model ?? 'genericMachine', library)
+  const basePosition = vector3(node.transform?.position ?? node.position, [index * 2.2 - 4, 0.58, 0])
   return {
     id: node.id ?? `node-${index + 1}`,
     stencilId: stencil.id,
@@ -547,7 +583,7 @@ function normalizeNode(node, library, index = 0) {
     status: node.status ?? 'normal',
     headlineMetric: node.headlineMetric ?? stencil.headlineMetric,
     transform: {
-      position: vector3(node.transform?.position ?? node.position, [index * 2.2 - 4, 0.58, 0]),
+      position: stabilizeNodePosition(node, basePosition, library),
       rotation: vector3(node.transform?.rotation ?? node.rotation, [0, 0, 0]),
       scale:
         Array.isArray(node.transform?.scale) && node.transform.scale.length === 3
@@ -743,7 +779,7 @@ export function getSelectedNode(project, layout = getActiveLayout(project)) {
 }
 
 export function getNodePosition(node, layout, library = projectStencilLibrary) {
-  const base = vector3(node.transform?.position, [0, 0, 0])
+  const base = stabilizeNodePosition(node, vector3(node.transform?.position, [0, 0, 0]), library)
   const attachment = node.attachments[0]
   if (!attachment) return base
 
@@ -788,10 +824,18 @@ export function resolveRoutePoints(route, layout, library = projectStencilLibrar
   const toNode = layout.nodes.find((node) => node.id === route.to.nodeId)
   if (!fromNode || !toNode) return []
 
+  const start = resolvePortWorldPosition(fromNode, route.from.portId, layout, library)
+  const end = resolvePortWorldPosition(toNode, route.to.portId, layout, library)
+  const segments = route.segments.map((segment, index) => {
+    const point = vector3(segment)
+    const ratio = (index + 1) / (route.segments.length + 1)
+    return [point[0], start[1] + (end[1] - start[1]) * ratio, point[2]]
+  })
+
   return [
-    resolvePortWorldPosition(fromNode, route.from.portId, layout, library),
-    ...route.segments.map((segment) => vector3(segment)),
-    resolvePortWorldPosition(toNode, route.to.portId, layout, library),
+    start,
+    ...segments,
+    end,
   ]
 }
 
