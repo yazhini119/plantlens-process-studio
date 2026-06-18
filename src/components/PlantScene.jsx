@@ -180,6 +180,31 @@ function ClusterMarkers({ clusters, onFocusNode }) {
   )
 }
 
+function resolveLensCamera(lensMode, layout, selectedNode, project) {
+  if (lensMode === 'micro' && selectedNode) {
+    const point = getNodePosition(selectedNode, layout, project.library)
+    return {
+      position: [point[0] + 3.8, point[1] + 4.8, point[2] + 4.2],
+      target: [point[0], point[1] + 0.42, point[2]],
+      zoom: Math.min(132, Math.max(layout.camera.zoom + 24, 104)),
+    }
+  }
+
+  if (lensMode === 'macro') {
+    return {
+      position: [8.8, 9.2, 10.6],
+      target: layout.camera.target,
+      zoom: Math.max(34, Math.min(layout.camera.zoom - 8, 52)),
+    }
+  }
+
+  return {
+    position: [7.0, 7.3, 8.4],
+    target: layout.camera.target,
+    zoom: Math.max(56, Math.min(layout.camera.zoom + 6, 76)),
+  }
+}
+
 export function PlantScene({
   project,
   layout,
@@ -190,42 +215,44 @@ export function PlantScene({
   mapLayers,
   onViewportChange,
   editLayoutMode = false,
+  lensMode = 'meso',
 }) {
   const controlsRef = useRef(null)
   const [viewState, setViewState] = useState(() => ({
-    position: layout.camera.position,
-    target: layout.camera.target,
-    zoom: layout.camera.zoom,
+    ...resolveLensCamera(lensMode, layout, selectedNode, project),
     revision: 0,
   }))
-  const [currentZoom, setCurrentZoom] = useState(layout.camera.zoom)
-  const [currentTarget, setCurrentTarget] = useState(layout.camera.target)
+  const initialLensCamera = resolveLensCamera(lensMode, layout, selectedNode, project)
+  const [currentZoom, setCurrentZoom] = useState(initialLensCamera.zoom)
+  const [currentTarget, setCurrentTarget] = useState(initialLensCamera.target)
 
   useEffect(() => {
+    const lensCamera = resolveLensCamera(lensMode, layout, selectedNode, project)
     setViewState({
-      position: layout.camera.position,
-      target: layout.camera.target,
-      zoom: layout.camera.zoom,
+      position: lensCamera.position,
+      target: lensCamera.target,
+      zoom: lensCamera.zoom,
       revision: Date.now(),
     })
-    setCurrentZoom(layout.camera.zoom)
-    setCurrentTarget(layout.camera.target)
-    onViewportChange?.({ zoom: layout.camera.zoom, target: layout.camera.target })
-  }, [layout.id, layout.camera.position, layout.camera.target, layout.camera.zoom])
+    setCurrentZoom(lensCamera.zoom)
+    setCurrentTarget(lensCamera.target)
+    onViewportChange?.({ zoom: lensCamera.zoom, target: lensCamera.target })
+  }, [layout.id, layout.camera.position, layout.camera.target, layout.camera.zoom, lensMode, selectedNode?.id])
 
   useEffect(() => {
+    const lensCamera = resolveLensCamera(lensMode, layout, selectedNode, project)
     switch (sceneCommand.type) {
       case 'fit':
       case 'reset':
         setViewState({
-          position: layout.camera.position,
-          target: layout.camera.target,
-          zoom: layout.camera.zoom,
+          position: lensCamera.position,
+          target: lensCamera.target,
+          zoom: lensCamera.zoom,
           revision: Date.now(),
         })
-        setCurrentZoom(layout.camera.zoom)
-        setCurrentTarget(layout.camera.target)
-        onViewportChange?.({ zoom: layout.camera.zoom, target: layout.camera.target })
+        setCurrentZoom(lensCamera.zoom)
+        setCurrentTarget(lensCamera.target)
+        onViewportChange?.({ zoom: lensCamera.zoom, target: lensCamera.target })
         break
       case 'focus':
         if (selectedNode) {
@@ -273,7 +300,16 @@ export function PlantScene({
   const clusters = useMemo(() => buildClusterGroups(layout), [layout])
   const isEmptyLayout = layout.nodes.length === 0 && layout.routes.length === 0
   const showDemoContext = layout.kind === 'packaging' && !isEmptyLayout
-  const showClusters = !editLayoutMode && visibleNodes.length > 3 && currentZoom < 56
+  const showClusters = !editLayoutMode && visibleNodes.length > 3 && (lensMode === 'macro' || currentZoom < 50)
+  const routeFocusedNodeIds = useMemo(
+    () =>
+      new Set(
+        visibleRoutes
+          .filter((route) => ['active', 'alarm', 'downstream'].includes(route.state))
+          .flatMap((route) => [route.from.nodeId, route.to.nodeId]),
+      ),
+    [visibleRoutes],
+  )
 
   const handleControlsChange = () => {
     if (!controlsRef.current) return
@@ -337,11 +373,18 @@ export function PlantScene({
             value={getNodeParameterValue(node, node.headlineMetric) ?? 'Live'}
             onSelect={onSelect}
             mapLayers={mapLayers}
-            showLabels={!showClusters}
+            lensMode={lensMode}
+            showLabels={
+              lensMode === 'micro'
+                ? selectedNode?.id === node.id
+                : lensMode === 'meso'
+                  ? routeFocusedNodeIds.has(node.id) && !showClusters
+                  : !showClusters
+            }
           />
         ))}
       </Suspense>
-      {!showClusters ? <Callouts layout={layout} annotations={visibleAnnotations} library={project.library} /> : null}
+      {lensMode !== 'macro' && !showClusters ? <Callouts layout={layout} annotations={visibleAnnotations} library={project.library} /> : null}
       {showClusters ? <ClusterMarkers clusters={clusters} onFocusNode={onFocusNode ?? onSelect} /> : null}
       <ContactShadows position={[0, 0.02, 0]} opacity={0.25} blur={2.8} scale={14} />
     </Canvas>

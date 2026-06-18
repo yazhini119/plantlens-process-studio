@@ -5,9 +5,9 @@ import { KpiStrip } from './components/KpiStrip'
 import { LayoutWorkbench } from './components/LayoutWorkbench'
 import { MapSidebar } from './components/MapSidebar'
 import { MiniMap } from './components/MiniMap'
+import { ParameterDrawer } from './components/ParameterDrawer'
 import { PlantScene } from './components/PlantScene'
 import { ProjectToolbar } from './components/ProjectToolbar'
-import { RoleViewPanel } from './components/RoleViewPanel'
 import { SceneToolbar } from './components/SceneToolbar'
 import { TimelineRail } from './components/TimelineRail'
 import {
@@ -34,14 +34,16 @@ const FOCUSED_KPI_LABELS = new Set(['Active Alarms', 'Downtime Risk', 'Bottles/m
 function Workspace() {
   const { state, dispatch, activeLayout, selectedNode, activeLayoutIssues } = useProject()
   const [operatingMode, setOperatingMode] = useState('fault')
+  const [lensMode, setLensMode] = useState('meso')
   const [mapLayers, setMapLayers] = useState(DEFAULT_MAP_LAYERS)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showSignalTray, setShowSignalTray] = useState(false)
   const [showMiniMap, setShowMiniMap] = useState(false)
   const [showTimeline, setShowTimeline] = useState(false)
   const [showLayers, setShowLayers] = useState(false)
   const [showSections, setShowSections] = useState(false)
   const [userRole, setUserRole] = useState(() => getCurrentUserRole())
-  const [editLayoutMode, setEditLayoutMode] = useState(() => getCurrentUserRole() === 'engineer')
+  const [editLayoutMode, setEditLayoutMode] = useState(false)
   const [layoutSaved, setLayoutSaved] = useState(false)
   const [sceneViewport, setSceneViewport] = useState({
     zoom: activeLayout.camera.zoom,
@@ -80,10 +82,40 @@ function Workspace() {
 
   const handleSceneSelect = (nodeId) => {
     dispatch({ type: 'select-node', nodeId })
-    if (!nodeId) return
+    if (!nodeId) {
+      setLensMode('macro')
+      return
+    }
     const match = presentedLayout.nodes.find((node) => node.id === nodeId)
     if (match) {
       setSearchQuery(match.tag)
+      setLensMode('micro')
+    }
+  }
+
+  const handleLensModeChange = (mode) => {
+    setLensMode(mode)
+    if (mode === 'macro') {
+      dispatch({ type: 'select-node', nodeId: null })
+      setShowTimeline(false)
+      setShowLayers(false)
+      setShowSections(false)
+      dispatch({ type: 'send-scene-command', command: 'fit' })
+    }
+
+    if (mode === 'meso') {
+      setShowTimeline(false)
+      setShowLayers(false)
+      setShowSections(false)
+      dispatch({ type: 'send-scene-command', command: 'fit' })
+    }
+
+    if (mode === 'micro') {
+      const target = presentedSelectedNode ?? presentedLayout.nodes.find((node) => node.tag === presentedLayout.insight.origin)
+      if (target) {
+        dispatch({ type: 'select-node', nodeId: target.id })
+        dispatch({ type: 'send-scene-command', command: 'focus' })
+      }
     }
   }
 
@@ -130,7 +162,9 @@ function Workspace() {
   const handleRoleChange = (role) => {
     updateUserRole(role)
     setUserRole(role)
-    setEditLayoutMode(role === 'engineer')
+    if (role !== 'engineer') {
+      setEditLayoutMode(false)
+    }
     if (role === 'maintenance') {
       setMapLayers((current) => ({ ...current, maintenance: true, sensors: true }))
     }
@@ -143,6 +177,7 @@ function Workspace() {
 
   const handleCreateLayout = () => {
     handleRoleChange('engineer')
+    setEditLayoutMode(true)
     setOperatingMode('normal')
     setShowTimeline(false)
     setShowLayers(false)
@@ -155,6 +190,7 @@ function Workspace() {
   const handleToggleEditLayout = () => {
     if (userRole !== 'engineer') {
       handleRoleChange('engineer')
+      setEditLayoutMode(true)
       return
     }
     setEditLayoutMode((current) => !current)
@@ -171,6 +207,8 @@ function Workspace() {
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         onSearch={handleSearch}
+        lensMode={lensMode}
+        onLensModeChange={handleLensModeChange}
         operatingMode={operatingMode}
         onModeChange={setOperatingMode}
         editLayoutMode={editLayoutMode}
@@ -182,7 +220,7 @@ function Workspace() {
         onRoleChange={handleRoleChange}
         onCreateLayout={handleCreateLayout}
       />
-      <main className={`app-shell ${editLayoutMode ? 'edit-layout-open' : ''}`}>
+      <main className={`app-shell view-${lensMode} ${editLayoutMode ? 'edit-layout-open' : ''}`}>
         <section className={`scene-panel ${!editLayoutMode && equipmentDetails ? 'equipment-open' : ''}`}>
           <PlantScene
             project={state.project}
@@ -194,9 +232,12 @@ function Workspace() {
             mapLayers={mapLayers}
             onViewportChange={setSceneViewport}
             editLayoutMode={editLayoutMode}
+            lensMode={lensMode}
           />
 
           <SceneToolbar
+            lensMode={lensMode}
+            onLensModeChange={handleLensModeChange}
             showTimeline={showTimeline}
             onToggleTimeline={() => setShowTimeline((current) => !current)}
             showMiniMap={showMiniMap}
@@ -212,7 +253,7 @@ function Workspace() {
 
           {!editLayoutMode ? (
             <>
-              <KpiStrip items={kpis} />
+              <KpiStrip items={kpis} collapsed={!showSignalTray} onToggle={() => setShowSignalTray((current) => !current)} />
 
               <CalmCard
                 layout={presentedLayout}
@@ -225,7 +266,7 @@ function Workspace() {
 
               <MapSidebar
                 layout={presentedLayout}
-                selectedDetails={equipmentDetails}
+                selectedDetails={null}
                 mapLayers={mapLayers}
                 onToggleLayer={(layerId) => setMapLayers((current) => ({ ...current, [layerId]: !current[layerId] }))}
                 onClearSelection={() => dispatch({ type: 'select-node', nodeId: null })}
@@ -237,6 +278,8 @@ function Workspace() {
                 showLayers={showLayers}
                 showSections={showSections}
               />
+
+              {lensMode === 'micro' ? <ParameterDrawer /> : null}
 
               <MiniMap
                 layout={presentedLayout}
@@ -256,15 +299,6 @@ function Workspace() {
                   onToggle={() => setShowTimeline((current) => !current)}
                 />
               </div>
-
-              <RoleViewPanel
-                role={userRole}
-                layout={presentedLayout}
-                kpis={kpis}
-                selectedDetails={equipmentDetails}
-                onShowHistory={handleShowHistory}
-                onFocusAffected={handleFocusAffected}
-              />
             </>
           ) : null}
         </section>
