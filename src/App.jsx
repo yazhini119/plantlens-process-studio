@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { ChevronsDown, ChevronsUp, GripHorizontal, Maximize2, Minimize2 } from 'lucide-react'
 import './App.css'
 import { CalmCard } from './components/CalmCard'
 import { KpiStrip } from './components/KpiStrip'
@@ -60,6 +61,8 @@ function Workspace() {
   const [showSections, setShowSections] = useState(false)
   const [userRole, setUserRole] = useState(() => getCurrentUserRole())
   const [editLayoutMode, setEditLayoutMode] = useState(false)
+  const [editDrawerHeight, setEditDrawerHeight] = useState(430)
+  const [editDrawerCollapsed, setEditDrawerCollapsed] = useState(false)
   const [layoutSaved, setLayoutSaved] = useState(false)
   const [sceneViewport, setSceneViewport] = useState({
     zoom: activeLayout.camera.zoom,
@@ -212,6 +215,27 @@ function Workspace() {
     setEditLayoutMode((current) => !current)
   }
 
+  const startResizeEditor = (event) => {
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const startY = event.clientY
+    const startHeight = editDrawerHeight
+
+    const move = (moveEvent) => {
+      const nextHeight = Math.max(178, Math.min(window.innerHeight - 146, startHeight + startY - moveEvent.clientY))
+      setEditDrawerCollapsed(false)
+      setEditDrawerHeight(nextHeight)
+    }
+
+    const stop = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+    }
+
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
+
   const handlePreviewOperator = () => {
     handleSaveLayout()
     handleRoleChange('operator')
@@ -331,8 +355,29 @@ function Workspace() {
         </section>
 
         {userRole === 'engineer' && editLayoutMode ? (
-          <section className="edit-layout-drawer">
-            <LayoutWorkbench />
+          <section
+            className={`edit-layout-drawer ${editDrawerCollapsed ? 'collapsed' : ''}`}
+            style={{ '--edit-drawer-height': `${editDrawerCollapsed ? 58 : editDrawerHeight}px` }}
+          >
+            <header className="edit-drawer-control">
+              <span className="overlay-grip" onPointerDown={startResizeEditor} title="Resize layout editor">
+                <GripHorizontal size={16} />
+              </span>
+              <div>
+                <span>Engineering layout editor</span>
+                <strong>{activeLayout.name}</strong>
+              </div>
+              <button type="button" title={editDrawerCollapsed ? 'Open editor' : 'Collapse editor'} onClick={() => setEditDrawerCollapsed((value) => !value)}>
+                {editDrawerCollapsed ? <ChevronsUp size={16} /> : <ChevronsDown size={16} />}
+              </button>
+              <button type="button" title="Compact editor" onClick={() => { setEditDrawerCollapsed(false); setEditDrawerHeight(300) }}>
+                <Minimize2 size={16} />
+              </button>
+              <button type="button" title="Large editor" onClick={() => { setEditDrawerCollapsed(false); setEditDrawerHeight(Math.max(520, Math.round(window.innerHeight * 0.72))) }}>
+                <Maximize2 size={16} />
+              </button>
+            </header>
+            {editDrawerCollapsed ? null : <LayoutWorkbench />}
           </section>
         ) : null}
       </main>

@@ -11,11 +11,11 @@ const routePalette = {
 }
 
 const mediumPalette = {
-  'dc-power': { color: '#d9422f', radius: 0.048, opacity: 0.96, lineWidth: 3.2 },
-  'ac-power': { color: '#1d5eb6', radius: 0.048, opacity: 0.96, lineWidth: 3.2 },
-  rs485: { color: '#009db5', radius: 0.018, opacity: 0.88, lineWidth: 2.1 },
-  signal: { color: '#0f7a55', radius: 0.02, opacity: 0.82, lineWidth: 2 },
-  power: { color: '#172027', radius: 0.044, opacity: 0.9, lineWidth: 3 },
+  'dc-power': { color: '#c7352d', radius: 0.04, opacity: 0.94, lineWidth: 2.8, trayColor: '#b9c2c0' },
+  'ac-power': { color: '#0f4f9f', radius: 0.038, opacity: 0.9, lineWidth: 2.6, trayColor: '#b9c2c0' },
+  rs485: { color: '#007f96', radius: 0.012, opacity: 0.64, lineWidth: 1.35 },
+  signal: { color: '#0f7a55', radius: 0.014, opacity: 0.62, lineWidth: 1.3 },
+  power: { color: '#172027', radius: 0.036, opacity: 0.86, lineWidth: 2.4, trayColor: '#b9c2c0' },
 }
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
@@ -28,7 +28,7 @@ function resolveRoutePalette(route) {
   }
 }
 
-function CableSegment({ start, end, color, radius, opacity }) {
+function CableSegment({ start, end, color, radius, opacity, trayColor }) {
   const segment = useMemo(() => {
     const from = new THREE.Vector3(...start)
     const to = new THREE.Vector3(...end)
@@ -46,10 +46,28 @@ function CableSegment({ start, end, color, radius, opacity }) {
 
   return (
     <group position={segment.midpoint} quaternion={segment.quaternion}>
+      {trayColor && segment.length > 0.52 ? (
+        <mesh position={[0, 0, -radius * 1.55]}>
+          <boxGeometry args={[radius * 4.8, segment.length, radius * 1.4]} />
+          <meshStandardMaterial color={trayColor} roughness={0.68} metalness={0.12} transparent opacity={0.34} />
+        </mesh>
+      ) : null}
       <mesh>
-        <cylinderGeometry args={[radius, radius, segment.length, 8]} />
-        <meshStandardMaterial color={color} roughness={0.34} metalness={0.06} transparent opacity={opacity} />
+        <cylinderGeometry args={[radius, radius, segment.length, 10]} />
+        <meshStandardMaterial color={color} roughness={0.26} metalness={0.08} transparent opacity={opacity} />
       </mesh>
+      {segment.length > 0.8 ? (
+        <>
+          <mesh position={[0, -segment.length * 0.38, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[radius * 1.22, radius * 0.18, 6, 14]} />
+            <meshStandardMaterial color="#e6ecea" roughness={0.42} metalness={0.12} />
+          </mesh>
+          <mesh position={[0, segment.length * 0.38, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[radius * 1.22, radius * 0.18, 6, 14]} />
+            <meshStandardMaterial color="#e6ecea" roughness={0.42} metalness={0.12} />
+          </mesh>
+        </>
+      ) : null}
     </group>
   )
 }
@@ -65,6 +83,7 @@ function CableRoute({ points, palette }) {
           color={palette.color}
           radius={palette.radius}
           opacity={palette.opacity}
+          trayColor={palette.trayColor}
         />
       ))}
       {points.slice(1, -1).map((point, index) => (
@@ -87,7 +106,7 @@ function InstrumentRoute({ points, palette, dashed = true }) {
       opacity={palette.opacity}
       dashed={dashed}
       dashSize={0.18}
-      gapSize={0.12}
+      gapSize={0.16}
       dashScale={1}
     />
   )

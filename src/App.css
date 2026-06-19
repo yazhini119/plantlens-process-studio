@@ -6284,3 +6284,334 @@ body {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Professional engineering workspace pass: resizable editor + connection palette. */
+.toolbar-studio-panel {
+  position: fixed !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  width: min(1120px, calc(100vw - 28px)) !important;
+  max-height: min(310px, calc(100dvh - 78px));
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 9px !important;
+  padding: 10px !important;
+  border-radius: 12px !important;
+  z-index: 40;
+}
+
+.toolbar-studio-panel.minimized {
+  width: min(360px, calc(100vw - 24px)) !important;
+}
+
+.studio-window-header {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 30px 30px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 7px;
+  border: 1px solid rgba(34, 42, 48, 0.08);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.studio-window-header div {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.studio-window-header span {
+  color: #68757d;
+  font-size: 9px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.studio-window-header strong {
+  color: #172027;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-window-header button,
+.edit-drawer-control button {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(34, 42, 48, 0.1);
+  border-radius: 8px;
+  color: #172027;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+
+.studio-window-body {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.2fr) minmax(145px, 0.6fr) minmax(270px, 0.82fr) minmax(300px, 0.95fr);
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.studio-window-body .studio-panel-section {
+  min-height: 0 !important;
+}
+
+.app-shell.edit-layout-open {
+  height: calc(100dvh - 86px) !important;
+}
+
+.app-shell.edit-layout-open .scene-panel {
+  min-height: 100%;
+}
+
+.edit-layout-drawer {
+  position: fixed !important;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--edit-drawer-height, 430px) !important;
+  min-height: 58px !important;
+  max-height: calc(100dvh - 126px);
+  z-index: 35;
+  padding: 10px 14px 14px !important;
+  border-top: 1px solid rgba(34, 42, 48, 0.12);
+  background: rgba(247, 250, 249, 0.96);
+  box-shadow: 0 -18px 54px rgba(22, 34, 43, 0.16);
+  backdrop-filter: blur(18px) saturate(1.04);
+}
+
+.edit-layout-drawer.collapsed {
+  overflow: hidden;
+}
+
+.edit-drawer-control {
+  height: 42px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 32px 32px 32px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.edit-drawer-control div {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.edit-drawer-control span {
+  color: #68757d;
+  font-size: 9px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.edit-drawer-control strong {
+  color: #172027;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edit-layout-drawer .workbench {
+  height: calc(var(--edit-drawer-height, 430px) - 74px) !important;
+  min-height: 0 !important;
+  grid-template-columns: 332px minmax(1040px, 1fr) !important;
+  gap: 12px !important;
+}
+
+.edit-layout-drawer .workbench-sidebar,
+.edit-layout-drawer .workbench-main {
+  min-height: 0 !important;
+}
+
+.workbench-canvas-scroll {
+  min-height: 0 !important;
+  height: calc(var(--edit-drawer-height, 430px) - 164px) !important;
+}
+
+.connection-palette {
+  min-width: 360px;
+  max-width: 520px;
+  display: grid;
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid rgba(34, 42, 48, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.connection-palette > span {
+  color: #68757d;
+  font-size: 8px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.connection-palette > strong {
+  color: #172027;
+  font-size: 10px;
+  line-height: 1.15;
+}
+
+.connection-palette > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.connection-palette button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(34, 42, 48, 0.1);
+  border-radius: 8px;
+  color: #394850;
+  background: rgba(246, 249, 248, 0.92);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.connection-palette button[data-family="electrical"] {
+  color: #174f91;
+}
+
+.connection-palette button[data-family="process"] {
+  color: #0f6b4c;
+}
+
+.connection-palette button[data-family="data"] {
+  color: #007f96;
+}
+
+.connection-palette button.active {
+  color: #ffffff;
+  background: #172027;
+  border-color: #172027;
+}
+
+.workbench-actions {
+  align-items: start !important;
+}
+
+.workbench-canvas {
+  min-width: 1620px !important;
+  min-height: 760px !important;
+}
+
+.layout-route.active {
+  stroke-width: 5px;
+  opacity: 0.86;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.8));
+}
+
+.layout-route[data-dashed="true"] {
+  stroke-width: 2.5px;
+  stroke-dasharray: 10 8;
+  opacity: 0.72;
+}
+
+.role-view-panel {
+  border-radius: 10px;
+  box-shadow: 0 20px 58px rgba(22, 34, 43, 0.14);
+}
+
+.role-note {
+  padding: 12px !important;
+  border-radius: 9px !important;
+}
+
+.role-action-grid button {
+  min-height: 40px;
+  border-radius: 9px;
+}
+
+@media (max-width: 1180px) {
+  .studio-window-body {
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+  }
+
+  .connection-palette {
+    min-width: 260px;
+  }
+}
+
+@media (max-width: 880px) {
+  .studio-window-body {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-palette {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .edit-layout-drawer .workbench {
+    grid-template-columns: 280px minmax(780px, 1fr) !important;
+  }
+}
+
+@media (max-width: 620px) {
+  :root {
+    --plantlens-toolbar-height: 170px;
+  }
+
+  .project-toolbar.product-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      "brand actions"
+      "lens lens"
+      "search search" !important;
+    align-items: stretch;
+    gap: 7px;
+    padding: 8px;
+  }
+
+  .product-toolbar .toolbar-brand {
+    min-width: 0;
+  }
+
+  .product-toolbar .toolbar-brand strong {
+    font-size: 13px;
+  }
+
+  .lens-switcher {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .lens-switcher button {
+    min-height: 32px;
+    gap: 4px;
+    font-size: 10px;
+  }
+
+  .product-toolbar .toolbar-actions {
+    justify-content: flex-end;
+    gap: 5px;
+  }
+
+  .toolbar-studio-panel {
+    left: 8px !important;
+    top: 78px !important;
+    width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 92px);
+  }
+
+  .toolbar-studio-panel.minimized {
+    width: min(300px, calc(100vw - 16px)) !important;
+  }
+
+  .studio-window-header {
+    grid-template-columns: 22px minmax(0, 1fr) 28px 28px;
+    gap: 6px;
+  }
+}

@@ -1,4 +1,4 @@
-import { GripHorizontal, Maximize2, Minimize2, X } from 'lucide-react'
+import { GripHorizontal, Maximize2, X } from 'lucide-react'
 import { useState } from 'react'
 import { useProject } from '../store/projectStore'
 
@@ -9,7 +9,6 @@ function clamp(value, min, max) {
 export function ParameterDrawer() {
   const { state, dispatch, selectedNode, activeNodeParameters, activeNodeValues } = useProject()
   const [dragging, setDragging] = useState(false)
-  const [minimized, setMinimized] = useState(false)
   const [maximized, setMaximized] = useState(false)
 
   if (!selectedNode) return null
@@ -50,7 +49,7 @@ export function ParameterDrawer() {
 
   return (
     <aside
-      className={`parameter-drawer ${dragging ? 'dragging' : ''} ${minimized ? 'minimized' : ''} ${maximized ? 'maximized' : ''}`}
+      className={`parameter-drawer ${dragging ? 'dragging' : ''} ${maximized ? 'maximized' : ''}`}
       style={maximized ? { left: 18, top: 92 } : { left: drawerPosition.x, top: drawerPosition.y }}
     >
       <div className="drawer-header">
@@ -59,14 +58,6 @@ export function ParameterDrawer() {
           <span>{selectedNode.tag}</span>
           <strong>{selectedNode.label} parameters</strong>
         </div>
-        <button
-          type="button"
-          title={minimized ? 'Restore parameter details' : 'Minimize parameter details'}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => setMinimized((value) => !value)}
-        >
-          {minimized ? <Maximize2 size={18} /> : <Minimize2 size={18} />}
-        </button>
         <button
           type="button"
           title={maximized ? 'Restore parameter details' : 'Maximize parameter details'}
@@ -84,34 +75,32 @@ export function ParameterDrawer() {
           <X size={18} />
         </button>
       </div>
-      {minimized ? null : (
-        <>
-          <p>{selectedNode.description}</p>
-          <div className="parameter-list">
-            {activeNodeParameters.map((parameter) => {
-              const value = activeNodeValues[parameter] ?? ''
-              const alarm = value === 'ACTIVE' || (parameter.includes('Alarm') && value !== 'Inactive' && value !== 'Normal')
+      <>
+        <p>{selectedNode.description}</p>
+        <div className="parameter-list">
+          {activeNodeParameters.map((parameter) => {
+            const value = activeNodeValues[parameter] ?? ''
+            const alarm = value === 'ACTIVE' || (parameter.includes('Alarm') && value !== 'Inactive' && value !== 'Normal')
 
-              return (
-                <label className={`parameter-row ${alarm ? 'alarm' : ''}`} key={parameter}>
-                  <span>{parameter}</span>
-                  <input
-                    aria-label={`${parameter} value`}
-                    value={value}
-                    onChange={(event) =>
-                      dispatch({
-                        type: 'set-parameter',
-                        nodeId: selectedNode.id,
-                        parameter,
-                        value: event.target.value,
-                      })}
-                  />
-                </label>
-              )
-            })}
-          </div>
-        </>
-      )}
+            return (
+              <label className={`parameter-row ${alarm ? 'alarm' : ''}`} key={parameter}>
+                <span>{parameter}</span>
+                <input
+                  aria-label={`${parameter} value`}
+                  value={value}
+                  onChange={(event) =>
+                    dispatch({
+                      type: 'set-parameter',
+                      nodeId: selectedNode.id,
+                      parameter,
+                      value: event.target.value,
+                    })}
+                />
+              </label>
+            )
+          })}
+        </div>
+      </>
     </aside>
   )
 }

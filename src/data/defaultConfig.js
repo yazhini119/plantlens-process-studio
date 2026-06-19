@@ -898,9 +898,9 @@ export const defaultConfig = normalizeProjectDocument({
   name: 'PlantLens Process Studio',
   library: projectStencilLibrary,
   variables: {},
-  layouts: [solarInverterPanelLayout, packagingLayout, utilitiesLayout],
+  layouts: [packagingLayout, solarInverterPanelLayout, utilitiesLayout],
   views: {
-    activeLayoutId: solarInverterPanelLayout.id,
+    activeLayoutId: packagingLayout.id,
     selectedIds: [],
     activeTool: 'select',
     isolatedLayerId: null,

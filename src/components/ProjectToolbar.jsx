@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { GripHorizontal, Maximize2, Minimize2, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import Add01Icon from '@hugeicons/core-free-icons/Add01Icon'
 import Alert01Icon from '@hugeicons/core-free-icons/Alert01Icon'
@@ -98,10 +99,44 @@ export function ProjectToolbar({
 }) {
   const { state, dispatch, canUndo, canRedo, activeLayoutIssues } = useProject()
   const [studioOpen, setStudioOpen] = useState(false)
+  const [studioMinimized, setStudioMinimized] = useState(false)
+  const [studioDragging, setStudioDragging] = useState(false)
+  const [studioPosition, setStudioPosition] = useState(() => ({
+    x: Math.max(12, Math.round(((typeof window === 'undefined' ? 1440 : window.innerWidth) - 1180) / 2)),
+    y: 66,
+  }))
   const ready = activeLayoutIssues.length === 0
   const engineerView = userRole === 'engineer'
   const canDeleteLayout = state.project.layouts.length > 1
   const activeRoleSpec = roleOptions.find((role) => role.id === userRole) ?? roleOptions[0]
+
+  const startStudioDrag = (event) => {
+    const panel = event.currentTarget.closest('.toolbar-studio-panel')
+    if (!panel) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const rect = panel.getBoundingClientRect()
+    const startX = event.clientX
+    const startY = event.clientY
+    const origin = { ...studioPosition }
+    setStudioDragging(true)
+
+    const move = (moveEvent) => {
+      setStudioPosition({
+        x: Math.max(8, Math.min(window.innerWidth - rect.width - 8, origin.x + moveEvent.clientX - startX)),
+        y: Math.max(58, Math.min(window.innerHeight - rect.height - 8, origin.y + moveEvent.clientY - startY)),
+      })
+    }
+
+    const stop = () => {
+      setStudioDragging(false)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+    }
+
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
 
   return (
     <header className="project-toolbar product-toolbar">
@@ -173,7 +208,28 @@ export function ProjectToolbar({
       </div>
 
       {studioOpen ? (
-        <section className="toolbar-studio-panel" aria-label="Studio controls">
+        <section
+          className={`toolbar-studio-panel ${studioMinimized ? 'minimized' : ''} ${studioDragging ? 'dragging' : ''}`}
+          aria-label="Studio controls"
+          style={{ left: studioPosition.x, top: studioPosition.y }}
+        >
+          <header className="studio-window-header">
+            <span className="overlay-grip" onPointerDown={startStudioDrag} title="Move studio panel">
+              <GripHorizontal size={15} />
+            </span>
+            <div>
+              <span>Studio controls</span>
+              <strong>{activeRoleSpec.view}</strong>
+            </div>
+            <button type="button" title={studioMinimized ? 'Restore studio controls' : 'Minimize studio controls'} onClick={() => setStudioMinimized((value) => !value)}>
+              {studioMinimized ? <Maximize2 size={15} /> : <Minimize2 size={15} />}
+            </button>
+            <button type="button" title="Close studio controls" onClick={() => setStudioOpen(false)}>
+              <X size={15} />
+            </button>
+          </header>
+          {!studioMinimized ? (
+          <div className="studio-window-body">
           <div className="studio-panel-section layout-section">
             <div className="studio-section-title">
               <ToolIcon icon={FactoryIcon} size={15} />
@@ -304,6 +360,8 @@ export function ProjectToolbar({
                 ) : null}
               </div>
             </div>
+          ) : null}
+          </div>
           ) : null}
         </section>
       ) : null}

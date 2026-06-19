@@ -56,14 +56,14 @@ const STARTER_STENCIL_IDS = [
   'pipeSegment',
 ]
 const CONNECTION_TYPES = [
-  { id: 'processFlow', label: 'Process Flow' },
-  { id: 'signal', label: 'Signal/Data' },
-  { id: 'power', label: 'Power' },
-  { id: 'dcPower', label: 'DC Power Cable' },
-  { id: 'acPower', label: 'AC Power Cable' },
-  { id: 'rs485', label: 'RS485 Cable' },
-  { id: 'alarmDependency', label: 'Alarm Dependency' },
-  { id: 'utilityLine', label: 'Utility Line' },
+  { id: 'processFlow', label: 'Pipe / Process', shortLabel: 'Pipe', family: 'process', helper: 'Tanks, pumps, conveyors, fillers' },
+  { id: 'utilityLine', label: 'Utility line', shortLabel: 'Utility', family: 'process', helper: 'Air, water, service feeds' },
+  { id: 'dcPower', label: 'DC wiring', shortLabel: 'DC', family: 'electrical', helper: '48VDC, battery, protection' },
+  { id: 'acPower', label: 'AC wiring', shortLabel: 'AC', family: 'electrical', helper: '230VAC, VFD, motor load' },
+  { id: 'rs485', label: 'RS485 bus', shortLabel: 'RS485', family: 'data', helper: 'PLC, HMI, metering network' },
+  { id: 'signal', label: 'Signal / IO', shortLabel: 'I/O', family: 'data', helper: 'Sensors and cards' },
+  { id: 'alarmDependency', label: 'Alarm dependency', shortLabel: 'Alarm', family: 'logic', helper: 'RCA dependency edge' },
+  { id: 'power', label: 'Generic power', shortLabel: 'Power', family: 'electrical', helper: 'Unspecified power feed' },
 ]
 
 function snap(value, step = 0.25) {
@@ -173,6 +173,7 @@ export function LayoutWorkbench() {
   }
 
   const selectedStencil = getStencilDefinition(resolvedSelectedStencilId, state.project.library)
+  const selectedConnection = CONNECTION_TYPES.find((type) => type.id === connectionType) ?? CONNECTION_TYPES[0]
   const stencilParameters = selectedStencil.parameters ?? []
   const draft =
     draftState.stencilId === resolvedSelectedStencilId
@@ -601,16 +602,28 @@ export function LayoutWorkbench() {
             </div>
           </div>
           <div className="workbench-actions">
-            <select
-              className="connection-type-select"
-              value={connectionType}
-              onChange={(event) => setConnectionType(event.target.value)}
-              title="Connection type"
-            >
-              {CONNECTION_TYPES.map((type) => (
-                <option key={type.id} value={type.id}>{type.label}</option>
-              ))}
-            </select>
+            <div className="connection-palette" aria-label="Connection palette">
+              <span>{selectedConnection.family}</span>
+              <strong>{selectedConnection.helper}</strong>
+              <div>
+                {CONNECTION_TYPES.map((type) => (
+                  <button
+                    key={type.id}
+                    type="button"
+                    className={connectionType === type.id ? 'active' : ''}
+                    data-family={type.family}
+                    title={`${type.label}: ${type.helper}`}
+                    onClick={() => {
+                      setConnectionType(type.id)
+                      setConnectionSourceId(null)
+                      dispatch({ type: 'set-active-tool', tool: 'connect' })
+                    }}
+                  >
+                    {type.shortLabel}
+                  </button>
+                ))}
+              </div>
+            </div>
             <button
               className={`icon-chip ${state.project.views.activeTool === 'connect' ? 'active' : ''}`}
               title={connectionSourceId ? 'Click destination equipment to finish connection' : 'Connect equipment by clicking source and destination'}
