@@ -900,7 +900,7 @@ export const defaultConfig = normalizeProjectDocument({
   variables: {},
   layouts: [packagingLayout, solarInverterPanelLayout, utilitiesLayout],
   views: {
-    activeLayoutId: packagingLayout.id,
+    activeLayoutId: solarInverterPanelLayout.id,
     selectedIds: [],
     activeTool: 'select',
     isolatedLayerId: null,
@@ -1166,7 +1166,8 @@ export function resolveRoutePoints(route, layout, library = projectStencilLibrar
   const segments = route.segments.map((segment, index) => {
     const point = vector3(segment)
     const ratio = (index + 1) / (route.segments.length + 1)
-    return [point[0], start[1] + (end[1] - start[1]) * ratio, point[2]]
+    const fallbackY = start[1] + (end[1] - start[1]) * ratio
+    return [point[0], Number.isFinite(point[1]) ? point[1] : fallbackY, point[2]]
   })
 
   return [

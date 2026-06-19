@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { ChevronsDown, ChevronsUp, GripHorizontal, Maximize2, Minimize2 } from 'lucide-react'
+import { ChevronsDown, ChevronsUp, GripHorizontal, Maximize2, Minimize2, Redo2, RotateCcw, Undo2 } from 'lucide-react'
 import './App.css'
 import { CalmCard } from './components/CalmCard'
 import { KpiStrip } from './components/KpiStrip'
@@ -49,7 +49,7 @@ function layersForRole(role, currentLayers = DEFAULT_MAP_LAYERS) {
 }
 
 function Workspace() {
-  const { state, dispatch, activeLayout, selectedNode, activeLayoutIssues } = useProject()
+  const { state, dispatch, activeLayout, selectedNode, activeLayoutIssues, canUndo, canRedo } = useProject()
   const [operatingMode, setOperatingMode] = useState('normal')
   const [lensMode, setLensMode] = useState('macro')
   const [mapLayers, setMapLayers] = useState(DEFAULT_MAP_LAYERS)
@@ -76,6 +76,28 @@ function Workspace() {
     [activeLayout, operatingMode],
   )
 
+  const populatedDemoLayout = useMemo(() => {
+    const populatedLayouts = state.project.layouts.filter((layout) => layout.nodes?.length > 0)
+    return (
+      populatedLayouts.find((layout) => layout.kind === activeLayout.kind) ??
+      populatedLayouts.find((layout) => layout.kind === 'power-panel') ??
+      populatedLayouts[0] ??
+      null
+    )
+  }, [activeLayout.kind, state.project.layouts])
+
+  const sceneLayout = useMemo(() => {
+    const fallbackLayout = editLayoutMode && presentedLayout.nodes.length === 0 && populatedDemoLayout
+      ? populatedDemoLayout
+      : activeLayout
+
+    return fallbackLayout.id === activeLayout.id
+      ? presentedLayout
+      : buildPresentationLayout(fallbackLayout, operatingMode)
+  }, [activeLayout, editLayoutMode, operatingMode, populatedDemoLayout, presentedLayout])
+
+  const sceneUsesReferenceLayout = sceneLayout.id !== presentedLayout.id
+
   const presentedSelectedNode = useMemo(
     () => presentedLayout.nodes.find((node) => node.id === selectedNode?.id) ?? null,
     [presentedLayout, selectedNode],
@@ -95,14 +117,28 @@ function Workspace() {
     [presentedSelectedNode, presentedLayout],
   )
 
-  const focusNode = (nodeId) => {
-    const match = presentedLayout.nodes.find((node) => node.id === nodeId)
+  const focusNode = (nodeId, sourceLayout = presentedLayout) => {
+    const match = sourceLayout.nodes.find((node) => node.id === nodeId)
     if (!match) return
+    if (sourceLayout.id !== activeLayout.id) {
+      dispatch({ type: 'select-layout', layoutId: sourceLayout.id })
+    }
     dispatch({ type: 'select-node', nodeId })
     dispatch({ type: 'send-scene-command', command: 'focus' })
   }
 
   const handleSceneSelect = (nodeId) => {
+    if (sceneUsesReferenceLayout) {
+      if (!nodeId) return
+      const match = sceneLayout.nodes.find((node) => node.id === nodeId)
+      if (!match) return
+      dispatch({ type: 'select-layout', layoutId: sceneLayout.id })
+      dispatch({ type: 'select-node', nodeId })
+      setSearchQuery(match.tag)
+      setLensMode('micro')
+      dispatch({ type: 'send-scene-command', command: 'focus' })
+      return
+    }
     dispatch({ type: 'select-node', nodeId })
     if (!nodeId) {
       setLensMode('macro')
@@ -144,7 +180,8 @@ function Workspace() {
   const handleSearch = () => {
     const query = searchQuery.trim()
     if (!query) return
-    const match = presentedLayout.nodes.find((node) =>
+    const searchLayout = editLayoutMode ? sceneLayout : presentedLayout
+    const match = searchLayout.nodes.find((node) =>
       node.tag.toLowerCase().includes(query.toLowerCase()) ||
       node.label.toLowerCase().includes(query.toLowerCase()),
     )
@@ -153,7 +190,17 @@ function Workspace() {
     }
 
     setSearchQuery(match.tag)
-    focusNode(match.id)
+    focusNode(match.id, searchLayout)
+  }
+
+  const handleRestoreDemoLayout = () => {
+    if (!populatedDemoLayout) return
+    dispatch({ type: 'select-layout', layoutId: populatedDemoLayout.id })
+    dispatch({ type: 'set-active-tool', tool: 'select' })
+    dispatch({ type: 'send-scene-command', command: 'fit' })
+    setOperatingMode('normal')
+    setLensMode('macro')
+    setSearchQuery('')
   }
 
   const handleFocusOrigin = () => {
@@ -222,7 +269,7 @@ function Workspace() {
     const startHeight = editDrawerHeight
 
     const move = (moveEvent) => {
-      const nextHeight = Math.max(178, Math.min(window.innerHeight - 146, startHeight + startY - moveEvent.clientY))
+      const nextHeight = Math.max(280, Math.min(window.innerHeight - 360, startHeight + startY - moveEvent.clientY))
       setEditDrawerCollapsed(false)
       setEditDrawerHeight(nextHeight)
     }
@@ -262,12 +309,15 @@ function Workspace() {
         onRoleChange={handleRoleChange}
         onCreateLayout={handleCreateLayout}
       />
-      <main className={`app-shell view-${lensMode} view-${userRole} ${editLayoutMode ? 'edit-layout-open' : ''}`}>
+      <main
+        className={`app-shell view-${lensMode} view-${userRole} ${editLayoutMode ? 'edit-layout-open' : ''} ${editDrawerCollapsed ? 'edit-layout-collapsed' : ''}`}
+        style={editLayoutMode ? { '--edit-drawer-height': `${editDrawerCollapsed ? 58 : editDrawerHeight}px` } : undefined}
+      >
         <section className={`scene-panel ${!editLayoutMode && equipmentDetails ? 'equipment-open' : ''}`}>
           <PlantScene
             project={state.project}
-            layout={presentedLayout}
-            selectedNode={presentedSelectedNode}
+            layout={sceneLayout}
+            selectedNode={sceneUsesReferenceLayout ? null : presentedSelectedNode}
             sceneCommand={state.ui.sceneCommand}
             onSelect={handleSceneSelect}
             onFocusNode={focusNode}
@@ -292,6 +342,14 @@ function Workspace() {
             onToggleEditLayout={handleToggleEditLayout}
             canEdit={userRole === 'engineer'}
           />
+
+          {editLayoutMode && sceneUsesReferenceLayout ? (
+            <div className="scene-reference-ribbon">
+              <span>3D reference visible</span>
+              <strong>{sceneLayout.name}</strong>
+              <button type="button" onClick={handleRestoreDemoLayout}>Edit this layout</button>
+            </div>
+          ) : null}
 
           {!editLayoutMode ? (
             <>
@@ -357,7 +415,6 @@ function Workspace() {
         {userRole === 'engineer' && editLayoutMode ? (
           <section
             className={`edit-layout-drawer ${editDrawerCollapsed ? 'collapsed' : ''}`}
-            style={{ '--edit-drawer-height': `${editDrawerCollapsed ? 58 : editDrawerHeight}px` }}
           >
             <header className="edit-drawer-control">
               <span className="overlay-grip" onPointerDown={startResizeEditor} title="Resize layout editor">
@@ -367,13 +424,25 @@ function Workspace() {
                 <span>Engineering layout editor</span>
                 <strong>{activeLayout.name}</strong>
               </div>
+              <div className="editor-control-actions" aria-label="Editor history and recovery">
+                <button type="button" title="Undo last layout edit" disabled={!canUndo} onClick={() => dispatch({ type: 'undo' })}>
+                  <Undo2 size={15} />
+                </button>
+                <button type="button" title="Redo layout edit" disabled={!canRedo} onClick={() => dispatch({ type: 'redo' })}>
+                  <Redo2 size={15} />
+                </button>
+                <button type="button" className="editor-text-action" title="Open populated demo layout" disabled={!populatedDemoLayout} onClick={handleRestoreDemoLayout}>
+                  <RotateCcw size={14} />
+                  <span>Demo layout</span>
+                </button>
+              </div>
               <button type="button" title={editDrawerCollapsed ? 'Open editor' : 'Collapse editor'} onClick={() => setEditDrawerCollapsed((value) => !value)}>
                 {editDrawerCollapsed ? <ChevronsUp size={16} /> : <ChevronsDown size={16} />}
               </button>
               <button type="button" title="Compact editor" onClick={() => { setEditDrawerCollapsed(false); setEditDrawerHeight(300) }}>
                 <Minimize2 size={16} />
               </button>
-              <button type="button" title="Large editor" onClick={() => { setEditDrawerCollapsed(false); setEditDrawerHeight(Math.max(520, Math.round(window.innerHeight * 0.72))) }}>
+              <button type="button" title="Large editor" onClick={() => { setEditDrawerCollapsed(false); setEditDrawerHeight(Math.min(window.innerHeight - 360, Math.max(520, Math.round(window.innerHeight * 0.62)))) }}>
                 <Maximize2 size={16} />
               </button>
             </header>

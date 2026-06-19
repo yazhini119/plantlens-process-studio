@@ -245,6 +245,11 @@ export function LayoutWorkbench() {
   const contentHeight = Math.round((bounds.maxZ - bounds.minZ) * SCALE + PADDING * 2)
   const canvasWidth = Math.max(1480, canvasViewport.width, contentWidth + 360)
   const canvasHeight = Math.max(680, canvasViewport.height, contentHeight + 180)
+  const recoveryLayout = state.project.layouts.find((layout) => (
+    layout.id !== activeLayout.id &&
+    layout.nodes.length > 0 &&
+    (layout.kind === activeLayout.kind || layout.kind === 'power-panel')
+  )) ?? state.project.layouts.find((layout) => layout.id !== activeLayout.id && layout.nodes.length > 0)
 
   const projectToCanvas = (point) => ({
     x: (point[0] - bounds.minX) * SCALE + PADDING,
@@ -376,6 +381,14 @@ export function LayoutWorkbench() {
     setConnectionSourceId(null)
     dispatch({ type: 'add-layout' })
     dispatch({ type: 'set-active-tool', tool: 'select' })
+  }
+
+  const openRecoveryLayout = () => {
+    if (!recoveryLayout) return
+    setConnectionSourceId(null)
+    dispatch({ type: 'select-layout', layoutId: recoveryLayout.id })
+    dispatch({ type: 'set-active-tool', tool: 'select' })
+    dispatch({ type: 'send-scene-command', command: 'fit' })
   }
 
   const dropStencil = (event) => {
@@ -662,6 +675,7 @@ export function LayoutWorkbench() {
                     points={points.map((point) => `${point.x},${point.y}`).join(' ')}
                     className={`layout-route ${route.state}`}
                     data-dashed={route.style?.dashed ? 'true' : 'false'}
+                    data-medium={route.medium}
                   />
                 )
               })}
@@ -672,6 +686,11 @@ export function LayoutWorkbench() {
                 <strong>Empty industrial layout</strong>
                 <span>Drag equipment models from the stencil library into this factory map.</span>
                 <small>Select dropped equipment to edit tag, label, status, live-value mapping, alarm limits, maintenance notes, and component parameters.</small>
+                {recoveryLayout ? (
+                  <button type="button" onClick={openRecoveryLayout}>
+                    Open {recoveryLayout.name}
+                  </button>
+                ) : null}
               </div>
             ) : null}
 
