@@ -1,22 +1,24 @@
-import { useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useMemo } from 'react'
+import { Line } from '@react-three/drei'
 import * as THREE from 'three'
 import { resolveRoutePoints } from '../data/defaultConfig'
 
 const routePalette = {
-  inactive: { color: '#cfd7d5', radius: 0.034, opacity: 0.42, particle: '#dfe4e2', speed: 0.05 },
-  active: { color: '#f0ac1b', radius: 0.058, opacity: 1, particle: '#ffe39a', speed: 0.16 },
-  downstream: { color: '#efb23a', radius: 0.046, opacity: 1, particle: '#fff0c0', speed: 0.11 },
-  alarm: { color: '#d94a35', radius: 0.062, opacity: 1, particle: '#ffd6b8', speed: 0.07 },
+  inactive: { color: '#cfd7d5', radius: 0.026, opacity: 0.35 },
+  active: { color: '#f0ac1b', radius: 0.046, opacity: 0.94 },
+  downstream: { color: '#efb23a', radius: 0.036, opacity: 0.86 },
+  alarm: { color: '#d94a35', radius: 0.05, opacity: 0.94 },
 }
 
 const mediumPalette = {
-  'dc-power': { color: '#d8432f', radius: 0.052, opacity: 0.96, particle: '#ffb3a8', speed: 0.12 },
-  'ac-power': { color: '#1d5eb6', radius: 0.052, opacity: 0.96, particle: '#a9d5ff', speed: 0.13 },
-  rs485: { color: '#00a7bd', radius: 0.028, opacity: 0.88, particle: '#94f1ff', speed: 0.1 },
-  signal: { color: '#0f7a55', radius: 0.032, opacity: 0.82, particle: '#9ce7c5', speed: 0.09 },
-  power: { color: '#172027', radius: 0.048, opacity: 0.88, particle: '#d6dde0', speed: 0.08 },
+  'dc-power': { color: '#d9422f', radius: 0.048, opacity: 0.96, lineWidth: 3.2 },
+  'ac-power': { color: '#1d5eb6', radius: 0.048, opacity: 0.96, lineWidth: 3.2 },
+  rs485: { color: '#009db5', radius: 0.018, opacity: 0.88, lineWidth: 2.1 },
+  signal: { color: '#0f7a55', radius: 0.02, opacity: 0.82, lineWidth: 2 },
+  power: { color: '#172027', radius: 0.044, opacity: 0.9, lineWidth: 3 },
 }
+
+const Y_AXIS = new THREE.Vector3(0, 1, 0)
 
 function resolveRoutePalette(route) {
   if (route.state === 'inactive') return routePalette.inactive
@@ -26,64 +28,68 @@ function resolveRoutePalette(route) {
   }
 }
 
-function Tube({ points, color, radius = 0.052, opacity = 1 }) {
-  const curve = useMemo(() => new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(...point))), [points])
-  const geometry = useMemo(() => new THREE.TubeGeometry(curve, 96, radius, 12, false), [curve, radius])
+function CableSegment({ start, end, color, radius, opacity }) {
+  const segment = useMemo(() => {
+    const from = new THREE.Vector3(...start)
+    const to = new THREE.Vector3(...end)
+    const midpoint = from.clone().lerp(to, 0.5)
+    const direction = to.clone().sub(from)
+    const length = direction.length()
+    const quaternion = new THREE.Quaternion()
+    if (length > 0.001) {
+      quaternion.setFromUnitVectors(Y_AXIS, direction.normalize())
+    }
+    return { midpoint, length, quaternion }
+  }, [end, start])
+
+  if (segment.length < 0.001) return null
 
   return (
-    <mesh geometry={geometry}>
-      <meshStandardMaterial color={color} roughness={0.26} metalness={0.12} transparent={opacity < 1} opacity={opacity} />
-    </mesh>
+    <group position={segment.midpoint} quaternion={segment.quaternion}>
+      <mesh>
+        <cylinderGeometry args={[radius, radius, segment.length, 8]} />
+        <meshStandardMaterial color={color} roughness={0.34} metalness={0.06} transparent opacity={opacity} />
+      </mesh>
+    </group>
   )
 }
 
-function FlowParticles({ points, color, speed, count = 3 }) {
-  const curve = useMemo(() => new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(...point))), [points])
-  const refs = useRef([])
-
-  useFrame(({ clock }) => {
-    refs.current.forEach((mesh, index) => {
-      if (!mesh) return
-      const t = (clock.elapsedTime * speed + index / count) % 1
-      const point = curve.getPointAt(t)
-      mesh.position.copy(point)
-    })
-  })
-
+function CableRoute({ points, palette }) {
   return (
-    <>
-      {Array.from({ length: count }).map((_, index) => (
-        <mesh key={index} ref={(element) => { refs.current[index] = element }}>
-          <sphereGeometry args={[0.07, 12, 10]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
+    <group>
+      {points.slice(0, -1).map((point, index) => (
+        <CableSegment
+          key={`${point.join('-')}-${index}`}
+          start={point}
+          end={points[index + 1]}
+          color={palette.color}
+          radius={palette.radius}
+          opacity={palette.opacity}
+        />
+      ))}
+      {points.slice(1, -1).map((point, index) => (
+        <mesh key={`${point.join('-')}-elbow-${index}`} position={point}>
+          <sphereGeometry args={[palette.radius * 1.35, 10, 8]} />
+          <meshStandardMaterial color={palette.color} roughness={0.3} metalness={0.08} transparent opacity={palette.opacity} />
         </mesh>
       ))}
-    </>
+    </group>
   )
 }
 
-function DashedFlow({ points, color, radius, particle, speed }) {
-  const segments = []
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const start = new THREE.Vector3(...points[i])
-    const end = new THREE.Vector3(...points[i + 1])
-    const distance = start.distanceTo(end)
-    const dashCount = Math.max(4, Math.floor(distance / 0.22))
-
-    for (let dash = 0; dash < dashCount; dash += 2) {
-      const a = dash / dashCount
-      const b = Math.min((dash + 1) / dashCount, 1)
-      segments.push([start.clone().lerp(end, a).toArray(), start.clone().lerp(end, b).toArray()])
-    }
-  }
-
+function InstrumentRoute({ points, palette, dashed = true }) {
   return (
-    <>
-      {segments.map(([a, b], index) => (
-        <Tube key={`${a.join('-')}-${index}`} points={[a, b]} color={color} radius={radius} />
-      ))}
-      <FlowParticles points={points} color={particle} speed={speed} count={2} />
-    </>
+    <Line
+      points={points}
+      color={palette.color}
+      lineWidth={palette.lineWidth ?? 2}
+      transparent
+      opacity={palette.opacity}
+      dashed={dashed}
+      dashSize={0.18}
+      gapSize={0.12}
+      dashScale={1}
+    />
   )
 }
 
@@ -94,15 +100,15 @@ export function FlowPath({ layout, library, routes }) {
         const points = resolveRoutePoints(route, layout, library)
         if (points.length < 2) return null
         const palette = resolveRoutePalette(route)
-
-        if (route.style?.dashed || route.state === 'downstream' || route.medium === 'rs485' || route.medium === 'signal') {
-          return <DashedFlow key={route.id} points={points} color={palette.color} radius={palette.radius} particle={palette.particle} speed={palette.speed} />
-        }
+        const isInstrumentRoute = route.style?.dashed || route.medium === 'rs485' || route.medium === 'signal'
 
         return (
           <group key={route.id}>
-            <Tube points={points} color={palette.color} radius={palette.radius} opacity={palette.opacity} />
-            {route.state !== 'inactive' ? <FlowParticles points={points} color={palette.particle} speed={palette.speed} /> : null}
+            {isInstrumentRoute ? (
+              <InstrumentRoute points={points} palette={palette} dashed />
+            ) : (
+              <CableRoute points={points} palette={palette} />
+            )}
           </group>
         )
       })}

@@ -30,6 +30,8 @@ const roleOptions = [
     view: 'Run view',
     description: 'Live status, alarms, RCA card, and guided checks. No layout edits.',
     capabilities: ['Acknowledge', 'Inspect asset', 'Open RCA'],
+    scope: 'Sees live process state, active events, guided RCA, and operator-safe parameters.',
+    approval: 'Can request maintenance approval; cannot approve wiring or configuration changes.',
   },
   {
     id: 'maintenance',
@@ -37,6 +39,8 @@ const roleOptions = [
     view: 'Service view',
     description: 'Health scores, vibration/temperature evidence, service ticket actions, and history.',
     capabilities: ['Service assets', 'History', 'Maintenance layers'],
+    scope: 'Sees service health, wiring checks, meter evidence, asset history, and field notes.',
+    approval: 'Can approve inspection completion and request engineer sign-off for wiring changes.',
   },
   {
     id: 'engineer',
@@ -44,6 +48,8 @@ const roleOptions = [
     view: 'Studio view',
     description: 'Stencil library, routing, layout edits, validation, JSON configuration, and save/preview.',
     capabilities: ['Edit layout', 'Connect routes', 'Validate'],
+    scope: 'Sees full topology, route validation, JSON config, layer controls, and edit tools.',
+    approval: 'Can approve configuration changes and publish the operator-ready view.',
   },
   {
     id: 'manager',
@@ -51,6 +57,8 @@ const roleOptions = [
     view: 'Executive view',
     description: 'Production impact, KPI summary, incident report, and energy view. Hides noisy controls.',
     capabilities: ['Impact summary', 'KPI report', 'RCA export'],
+    scope: 'Sees KPIs, risk, energy, approval status, and business impact only.',
+    approval: 'Can approve downtime or escalation; cannot edit plant topology.',
   },
 ]
 
@@ -241,6 +249,8 @@ export function ProjectToolbar({
             <article className="role-capability-card">
               <span>{activeRoleSpec.view}</span>
               <strong>{activeRoleSpec.description}</strong>
+              <p>{activeRoleSpec.scope}</p>
+              <em>{activeRoleSpec.approval}</em>
               <div>
                 {activeRoleSpec.capabilities.map((capability) => (
                   <small key={capability}>{capability}</small>

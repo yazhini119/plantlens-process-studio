@@ -25,9 +25,12 @@ function clone(value) {
 
 function getViewportDefaults() {
   const width = typeof window === 'undefined' ? 1440 : window.innerWidth
+  const height = typeof window === 'undefined' ? 820 : window.innerHeight
   return {
     cardPosition: { x: 16, y: 118 },
     drawerPosition: { x: Math.max(12, width - 360), y: 112 },
+    miniMapPosition: { x: Math.max(12, width - 256), y: Math.max(12, height - 168) },
+    timelinePosition: { x: 16, y: Math.max(12, height - 260) },
   }
 }
 
@@ -436,6 +439,18 @@ function reducer(state, action) {
       return {
         ...state,
         ui: { ...state.ui, drawerPosition: action.position },
+      }
+
+    case 'set-minimap-position':
+      return {
+        ...state,
+        ui: { ...state.ui, miniMapPosition: action.position },
+      }
+
+    case 'set-timeline-position':
+      return {
+        ...state,
+        ui: { ...state.ui, timelinePosition: action.position },
       }
 
     case 'set-calm-minimized':

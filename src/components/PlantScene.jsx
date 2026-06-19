@@ -1,6 +1,6 @@
-/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, react-hooks/immutability */
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import { ContactShadows, Html, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { getNodeParameterValue, getNodePosition } from '../data/defaultConfig'
@@ -51,6 +51,18 @@ function PlantFloor({ showGrid, empty = false, variant = 'process' }) {
             <boxGeometry args={[14.2, 0.04, 0.22]} />
             <meshStandardMaterial color="#c8d2d2" roughness={0.74} metalness={0.14} transparent opacity={0.52} />
           </mesh>
+          {[
+            [-8.34, -2.1, 0.22, 3.55],
+            [-4.44, -2.1, 0.22, 3.55],
+            [-2.1, 1.84, 8.9, 0.22],
+            [1.5, -0.66, 7.8, 0.18],
+            [6.85, -1.62, 0.18, 1.78],
+          ].map(([x, z, width, depth]) => (
+            <mesh key={`${x}-${z}`} position={[x, 0.045, z]} receiveShadow>
+              <boxGeometry args={[width, 0.055, depth]} />
+              <meshStandardMaterial color="#c5cecd" roughness={0.66} metalness={0.16} transparent opacity={0.62} />
+            </mesh>
+          ))}
         </>
       ) : null}
       {!empty && !isPowerPanel
@@ -196,29 +208,60 @@ function ClusterMarkers({ clusters, onFocusNode }) {
   )
 }
 
+const LENS_ZOOM_LIMITS = {
+  macro: [30, 56],
+  meso: [46, 84],
+  micro: [72, 118],
+}
+
+function clampZoomForLens(lensMode, zoom) {
+  const [min, max] = LENS_ZOOM_LIMITS[lensMode] ?? LENS_ZOOM_LIMITS.meso
+  return Math.max(min, Math.min(max, zoom))
+}
+
 function resolveLensCamera(lensMode, layout, selectedNode, project) {
   if (lensMode === 'micro' && selectedNode) {
     const point = getNodePosition(selectedNode, layout, project.library)
     return {
-      position: [point[0] + 3.8, point[1] + 4.8, point[2] + 4.2],
+      position: [point[0] + 3.4, point[1] + 4.3, point[2] + 3.9],
       target: [point[0], point[1] + 0.42, point[2]],
-      zoom: Math.min(132, Math.max(layout.camera.zoom + 24, 104)),
+      zoom: clampZoomForLens('micro', layout.camera.zoom + 38),
     }
   }
 
   if (lensMode === 'macro') {
     return {
-      position: [8.8, 9.2, 10.6],
+      position: [10.6, 9.8, 11.8],
       target: layout.camera.target,
-      zoom: Math.max(34, Math.min(layout.camera.zoom - 8, 52)),
+      zoom: clampZoomForLens('macro', layout.camera.zoom - 12),
     }
   }
 
   return {
-    position: [7.0, 7.3, 8.4],
+    position: [8.2, 7.8, 9.0],
     target: layout.camera.target,
-    zoom: Math.max(56, Math.min(layout.camera.zoom + 6, 76)),
+    zoom: clampZoomForLens('meso', layout.camera.zoom + 4),
   }
+}
+
+function CameraRig({ controlsRef, viewState, onViewportChange }) {
+  const { camera, invalidate } = useThree()
+
+  useEffect(() => {
+    camera.position.set(...viewState.position)
+    camera.zoom = viewState.zoom
+    camera.updateProjectionMatrix()
+
+    if (controlsRef.current) {
+      controlsRef.current.target.set(...viewState.target)
+      controlsRef.current.update()
+    }
+
+    onViewportChange?.({ zoom: viewState.zoom, target: viewState.target })
+    invalidate()
+  }, [camera, controlsRef, invalidate, onViewportChange, viewState.position, viewState.revision, viewState.target, viewState.zoom])
+
+  return null
 }
 
 export function PlantScene({
@@ -234,6 +277,7 @@ export function PlantScene({
   lensMode = 'meso',
 }) {
   const controlsRef = useRef(null)
+  const viewportTickRef = useRef(0)
   const [viewState, setViewState] = useState(() => ({
     ...resolveLensCamera(lensMode, layout, selectedNode, project),
     revision: 0,
@@ -253,7 +297,7 @@ export function PlantScene({
     setCurrentZoom(lensCamera.zoom)
     setCurrentTarget(lensCamera.target)
     onViewportChange?.({ zoom: lensCamera.zoom, target: lensCamera.target })
-  }, [layout.id, layout.camera.position, layout.camera.target, layout.camera.zoom, lensMode, selectedNode?.id])
+  }, [layout.id, layout.camera.position, layout.camera.target, layout.camera.zoom, lensMode])
 
   useEffect(() => {
     const lensCamera = resolveLensCamera(lensMode, layout, selectedNode, project)
@@ -273,10 +317,10 @@ export function PlantScene({
       case 'focus':
         if (selectedNode) {
           const point = getNodePosition(selectedNode, layout, project.library)
-          const nextZoom = Math.min(122, layout.camera.zoom + 18)
+          const nextZoom = clampZoomForLens(lensMode, lensMode === 'micro' ? layout.camera.zoom + 34 : layout.camera.zoom + 18)
           const nextTarget = [point[0], point[1] + 0.35, point[2]]
           setViewState({
-            position: [point[0] + 4.8, point[1] + 5.8, point[2] + 5.6],
+            position: [point[0] + 4.3, point[1] + 5.0, point[2] + 4.9],
             target: nextTarget,
             zoom: nextZoom,
             revision: Date.now(),
@@ -287,14 +331,14 @@ export function PlantScene({
         }
         break
       case 'zoom-in': {
-        const nextZoom = Math.min(128, currentZoom + 8)
+        const nextZoom = clampZoomForLens(lensMode, currentZoom + 8)
         setViewState((current) => ({ ...current, zoom: nextZoom, revision: Date.now() }))
         setCurrentZoom(nextZoom)
         onViewportChange?.({ zoom: nextZoom, target: currentTarget })
         break
       }
       case 'zoom-out': {
-        const nextZoom = Math.max(30, currentZoom - 8)
+        const nextZoom = clampZoomForLens(lensMode, currentZoom - 8)
         setViewState((current) => ({ ...current, zoom: nextZoom, revision: Date.now() }))
         setCurrentZoom(nextZoom)
         onViewportChange?.({ zoom: nextZoom, target: currentTarget })
@@ -329,6 +373,9 @@ export function PlantScene({
 
   const handleControlsChange = () => {
     if (!controlsRef.current) return
+    const now = typeof performance === 'undefined' ? Date.now() : performance.now()
+    if (now - viewportTickRef.current < 80) return
+    viewportTickRef.current = now
     const nextZoom = controlsRef.current.object.zoom
     const nextTarget = controlsRef.current.target.toArray()
     setCurrentZoom(nextZoom)
@@ -338,9 +385,11 @@ export function PlantScene({
 
   return (
     <Canvas
-      key={`${layout.id}-${viewState.revision}`}
       orthographic
       camera={{ position: viewState.position, zoom: viewState.zoom, near: 0.1, far: 100 }}
+      dpr={[1, 1.5]}
+      frameloop="demand"
+      gl={{ antialias: true, powerPreference: 'high-performance' }}
       shadows
       onPointerMissed={() => onSelect(null)}
     >
@@ -359,8 +408,8 @@ export function PlantScene({
         rotateSpeed={0.56}
         zoomSpeed={0.9}
         panSpeed={0.72}
-        minZoom={30}
-        maxZoom={128}
+        minZoom={LENS_ZOOM_LIMITS[lensMode]?.[0] ?? 30}
+        maxZoom={LENS_ZOOM_LIMITS[lensMode]?.[1] ?? 118}
         mouseButtons={{
           LEFT: THREE.MOUSE.ROTATE,
           MIDDLE: THREE.MOUSE.DOLLY,
@@ -373,6 +422,7 @@ export function PlantScene({
         target={viewState.target}
         onChange={handleControlsChange}
       />
+      <CameraRig controlsRef={controlsRef} viewState={viewState} onViewportChange={onViewportChange} />
       <PlantFloor showGrid={project.views.showGrid} empty={isEmptyLayout} variant={layout.kind} />
       {showDemoContext ? <IndustrialDetails /> : null}
       {mapLayers.processFlow && !isEmptyLayout ? <FlowPath layout={layout} routes={visibleRoutes} library={project.library} /> : null}

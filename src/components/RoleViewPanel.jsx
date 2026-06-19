@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardCheck, FileSearch, Wrench } from 'lucide-react'
+import { BarChart3, ClipboardCheck, FileSearch, ShieldCheck, Wrench } from 'lucide-react'
 import { getConnections, getEquipmentList } from '../services/plantlensApi'
 
 function healthFromNode(node) {
@@ -30,8 +30,6 @@ function impactSummary(layout, kpis) {
 }
 
 export function RoleViewPanel({ role, layout, kpis, selectedDetails, onShowHistory, onFocusAffected }) {
-  if (role === 'operator' || role === 'engineer') return null
-
   const equipment = getEquipmentList(layout)
   const connections = getConnections(layout)
   const healthItems = equipment.slice(0, 5).map((node) => ({
@@ -40,6 +38,70 @@ export function RoleViewPanel({ role, layout, kpis, selectedDetails, onShowHisto
     score: healthFromNode(node),
     status: node.status,
   }))
+
+  if (role === 'operator') {
+    return (
+      <aside className="role-view-panel operator-view-panel">
+        <header>
+          <div>
+            <span>Operator View</span>
+            <strong>Run status and safe actions</strong>
+          </div>
+          <ShieldCheck size={16} />
+        </header>
+        <div className="role-note">
+          <span>Can see</span>
+          <strong>Ready state, event timeline, live parameters, RCA summary, and HMI-safe checks.</strong>
+        </div>
+        <div className="role-note">
+          <span>Approval request</span>
+          <strong>Request maintenance approval for physical inspection; engineering approval is required before wiring or JSON changes.</strong>
+        </div>
+        <div className="role-action-grid">
+          <button type="button" onClick={onShowHistory}>
+            <FileSearch size={14} />
+            Event history
+          </button>
+          <button type="button" onClick={onFocusAffected}>
+            <ClipboardCheck size={14} />
+            Guided check
+          </button>
+        </div>
+      </aside>
+    )
+  }
+
+  if (role === 'engineer') {
+    return (
+      <aside className="role-view-panel engineer-view-panel">
+        <header>
+          <div>
+            <span>Engineer View</span>
+            <strong>Topology, validation, and publish control</strong>
+          </div>
+          <Wrench size={16} />
+        </header>
+        <div className="role-note">
+          <span>Can see</span>
+          <strong>Full 3D topology, stencils, cable routes, validation issues, JSON configuration, and role preview.</strong>
+        </div>
+        <div className="role-note">
+          <span>Approval authority</span>
+          <strong>Approve configuration and wiring model changes after validation shows ready.</strong>
+        </div>
+        <div className="role-action-grid">
+          <button type="button" onClick={onFocusAffected}>
+            <ClipboardCheck size={14} />
+            Validate path
+          </button>
+          <button type="button" onClick={onShowHistory}>
+            <FileSearch size={14} />
+            Change trail
+          </button>
+        </div>
+      </aside>
+    )
+  }
 
   if (role === 'maintenance') {
     return (

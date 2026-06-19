@@ -1,7 +1,8 @@
-import { Maximize2, Minimize2 } from 'lucide-react'
-import { useMemo } from 'react'
+import { GripHorizontal, Maximize2, Minimize2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildClusterGroups, buildMiniMapBounds } from '../data/presentationModel'
 import { resolveRoutePoints } from '../data/defaultConfig'
+import { useProject } from '../store/projectStore'
 
 const WIDTH = 220
 const HEIGHT = 140
@@ -24,10 +25,63 @@ function statusColor(status) {
   }
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value))
+}
+
 export function MiniMap({ layout, library, selectedNodeId, sceneViewport, onFocusNode, collapsed = false, onToggle }) {
+  const { state, dispatch } = useProject()
+  const { miniMapPosition } = state.ui
+  const panelRef = useRef(null)
+  const [dragging, setDragging] = useState(false)
   const bounds = useMemo(() => buildMiniMapBounds(layout, library), [layout, library])
   const clusters = useMemo(() => buildClusterGroups(layout), [layout])
   const showClusters = sceneViewport.zoom < 56
+
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+    const rect = panel.getBoundingClientRect()
+    const nextPosition = {
+      x: clamp(miniMapPosition.x, 8, Math.max(8, window.innerWidth - rect.width - 8)),
+      y: clamp(miniMapPosition.y, 8, Math.max(8, window.innerHeight - rect.height - 8)),
+    }
+    if (nextPosition.x !== miniMapPosition.x || nextPosition.y !== miniMapPosition.y) {
+      dispatch({ type: 'set-minimap-position', position: nextPosition })
+    }
+  }, [collapsed, dispatch, miniMapPosition.x, miniMapPosition.y])
+
+  const startDrag = (event) => {
+    const panel = panelRef.current
+    if (!panel) return
+
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const rect = panel.getBoundingClientRect()
+    const startX = event.clientX
+    const startY = event.clientY
+    const origin = { ...miniMapPosition }
+    setDragging(true)
+
+    const move = (moveEvent) => {
+      dispatch({
+        type: 'set-minimap-position',
+        position: {
+          x: clamp(origin.x + moveEvent.clientX - startX, 8, window.innerWidth - rect.width - 8),
+          y: clamp(origin.y + moveEvent.clientY - startY, 8, window.innerHeight - rect.height - 8),
+        },
+      })
+    }
+
+    const stop = () => {
+      setDragging(false)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+    }
+
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
 
   const project = (point) => {
     const width = Math.max(1, bounds.maxX - bounds.minX)
@@ -53,17 +107,25 @@ export function MiniMap({ layout, library, selectedNodeId, sceneViewport, onFocu
 
   if (collapsed) {
     return (
-      <button className="mini-map mini-map-collapsed" onClick={onToggle} type="button">
-        <span>Mini-map</span>
-        <strong>Open</strong>
-        <Maximize2 size={15} />
-      </button>
+      <section ref={panelRef} className={`mini-map mini-map-collapsed ${dragging ? 'dragging' : ''}`} style={{ left: miniMapPosition.x, top: miniMapPosition.y }}>
+        <span className="overlay-grip" onPointerDown={startDrag} title="Move mini-map">
+          <GripHorizontal size={15} />
+        </span>
+        <button onClick={onToggle} type="button">
+          <span>Mini-map</span>
+          <strong>Open</strong>
+          <Maximize2 size={15} />
+        </button>
+      </section>
     )
   }
 
   return (
-    <section className="mini-map">
+    <section ref={panelRef} className={`mini-map ${dragging ? 'dragging' : ''}`} style={{ left: miniMapPosition.x, top: miniMapPosition.y }}>
       <header>
+        <span className="overlay-grip" onPointerDown={startDrag} title="Move mini-map">
+          <GripHorizontal size={15} />
+        </span>
         <div>
           <span>Mini-map</span>
           <strong>{layout.name}</strong>

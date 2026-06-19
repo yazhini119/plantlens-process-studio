@@ -21,8 +21,39 @@ function setNodeState(node, status, parameters = {}) {
   }
 }
 
+function normalizeHealthyPowerPanel(layout) {
+  const next = clone(layout)
+
+  next.nodes.forEach((node) => {
+    setNodeState(node, 'normal')
+  })
+
+  next.routes.forEach((route) => {
+    route.state = 'active'
+  })
+
+  next.alarms = []
+  next.insight = {
+    ...next.insight,
+    title: 'Commissioned power conversion chain ready from source to motor load',
+    severity: 'Low',
+    confidence: '91%',
+    origin: 'PNL-100',
+    affectedAssets: 'DC-101, BAT-201, INV-301, VFD-401, MTR-501, PLC-701',
+    nextSpread: 'No active spread',
+    whatIsHappening:
+      'The DC source, charger branches, 24V battery, 2.5kVA inverter, VFD, motor load, RS485 bus, PLC, and HMI are wired, metered, and ready for monitored operation.',
+    whyItMatters:
+      'The cabinet shows power, protection, metering, control, and approval traceability as one clean industrial system.',
+  }
+
+  return next
+}
+
 function normalizeActiveLayout(layout) {
   const next = clone(layout)
+  if (layout.kind === 'power-panel') return normalizeHealthyPowerPanel(layout)
+
   if (layout.kind !== 'packaging') {
     next.nodes.forEach((node) => {
       if (node.status === 'inactive') {
@@ -102,6 +133,8 @@ function normalizeActiveLayout(layout) {
 }
 
 function normalizeHealthyLayout(layout) {
+  if (layout.kind === 'power-panel') return normalizeHealthyPowerPanel(layout)
+
   const next = clone(layout)
 
   next.nodes.forEach((node) => {
@@ -298,6 +331,17 @@ export function buildEquipmentDetails(node, layout) {
 }
 
 export function buildKpis(layout, mode = 'fault') {
+  if (layout.kind === 'power-panel') {
+    return [
+      { label: 'Panel Health', value: '98%', tone: 'normal' },
+      { label: 'Motor Load', value: '61%', tone: 'normal' },
+      { label: 'Active Alarms', value: '0', tone: 'normal' },
+      { label: 'Downtime Risk', value: 'Low', tone: 'normal' },
+      { label: 'Approval State', value: 'Ready', tone: 'normal' },
+      { label: 'Energy Usage', value: mode === 'normal' ? '2.1 kW' : '2.4 kW', tone: 'normal' },
+    ]
+  }
+
   if (layout.kind === 'utilities') {
     return [
       { label: 'Utility Health', value: mode === 'normal' ? '94%' : '91%', tone: 'normal' },
@@ -331,6 +375,16 @@ export function buildKpis(layout, mode = 'fault') {
 }
 
 export function buildTimeline(layout, mode = 'fault') {
+  if (layout.kind === 'power-panel') {
+    return [
+      { time: '10:01', event: 'Incoming DC and 230VAC sources verified' },
+      { time: '10:02', event: 'Fuse and MCB continuity approved' },
+      { time: '10:03', event: 'Battery, inverter, and VFD chain energized' },
+      { time: '10:04', event: 'RS485, PLC, HMI, temp and vibration signals online' },
+      { time: '10:05', event: 'Operator handover ready for approval' },
+    ]
+  }
+
   if (layout.kind === 'utilities') {
     return [
       { time: '10:01', event: 'Utility skid pressure stable' },
@@ -359,6 +413,14 @@ export function buildTimeline(layout, mode = 'fault') {
 }
 
 export function inferNodeArea(node, layoutKind = 'process') {
+  if (layoutKind === 'power-panel') {
+    if (['dcSource101', 'dcFuse101', 'dcMcb101', 'solarCharger101', 'acMains101', 'acFuse101', 'acMcb101', 'mainsCharger101'].includes(node.id)) return 'Source Protection'
+    if (['dcmSolar201', 'dcmMains202', 'battery201', 'batteryFuse201', 'batteryMcb201', 'dcmBattery203'].includes(node.id)) return 'Energy Storage'
+    if (['inv301', 'acmInv301', 'vfd401', 'acmMotor302', 'motor501'].includes(node.id)) return 'Drive Chain'
+    if (['rs485Bus601', 'tempCard701', 'plc701', 'hmi801'].includes(node.id)) return 'Control Network'
+    return 'Panel Cabinet'
+  }
+
   if (layoutKind === 'utilities') {
     if (node.id === 'comp707') return 'Energy Area'
     if (node.id === 'skid706') return 'Utilities Train'

@@ -31,6 +31,7 @@ const DEFAULT_MAP_LAYERS = {
 }
 
 const FOCUSED_KPI_LABELS = new Set(['Active Alarms', 'Downtime Risk', 'Bottles/min', 'Energy Usage'])
+const POWER_PANEL_KPI_LABELS = new Set(['Panel Health', 'Active Alarms', 'Downtime Risk', 'Energy Usage'])
 
 const ROLE_LAYER_PROFILES = {
   operator: { processFlow: true, alarms: true, sensors: true, maintenance: false, energy: false, safety: false },
@@ -48,7 +49,7 @@ function layersForRole(role, currentLayers = DEFAULT_MAP_LAYERS) {
 
 function Workspace() {
   const { state, dispatch, activeLayout, selectedNode, activeLayoutIssues } = useProject()
-  const [operatingMode, setOperatingMode] = useState('fault')
+  const [operatingMode, setOperatingMode] = useState('normal')
   const [lensMode, setLensMode] = useState('meso')
   const [mapLayers, setMapLayers] = useState(DEFAULT_MAP_LAYERS)
   const [searchQuery, setSearchQuery] = useState('')
@@ -78,7 +79,10 @@ function Workspace() {
   )
 
   const kpis = useMemo(
-    () => buildKpis(presentedLayout, operatingMode).filter((item) => FOCUSED_KPI_LABELS.has(item.label)),
+    () => {
+      const focusedLabels = presentedLayout.kind === 'power-panel' ? POWER_PANEL_KPI_LABELS : FOCUSED_KPI_LABELS
+      return buildKpis(presentedLayout, operatingMode).filter((item) => focusedLabels.has(item.label))
+    },
     [presentedLayout, operatingMode],
   )
   const timeline = useMemo(() => buildTimeline(presentedLayout, operatingMode), [presentedLayout, operatingMode])
@@ -163,7 +167,6 @@ function Workspace() {
   const handleShowHistory = () => {
     setShowTimeline(true)
     setTimelineHighlighted(true)
-    timelineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     window.setTimeout(() => setTimelineHighlighted(false), 1400)
   }
 
