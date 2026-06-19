@@ -8,6 +8,7 @@ import { MiniMap } from './components/MiniMap'
 import { ParameterDrawer } from './components/ParameterDrawer'
 import { PlantScene } from './components/PlantScene'
 import { ProjectToolbar } from './components/ProjectToolbar'
+import { RoleViewPanel } from './components/RoleViewPanel'
 import { SceneToolbar } from './components/SceneToolbar'
 import { TimelineRail } from './components/TimelineRail'
 import {
@@ -30,6 +31,20 @@ const DEFAULT_MAP_LAYERS = {
 }
 
 const FOCUSED_KPI_LABELS = new Set(['Active Alarms', 'Downtime Risk', 'Bottles/min', 'Energy Usage'])
+
+const ROLE_LAYER_PROFILES = {
+  operator: { processFlow: true, alarms: true, sensors: true, maintenance: false, energy: false, safety: false },
+  maintenance: { processFlow: true, alarms: true, sensors: true, maintenance: true, energy: false, safety: true },
+  engineer: { processFlow: true, alarms: true, sensors: true, maintenance: true, energy: true, safety: true },
+  manager: { processFlow: true, alarms: true, sensors: false, maintenance: false, energy: true, safety: false },
+}
+
+function layersForRole(role, currentLayers = DEFAULT_MAP_LAYERS) {
+  return {
+    ...currentLayers,
+    ...(ROLE_LAYER_PROFILES[role] ?? ROLE_LAYER_PROFILES.operator),
+  }
+}
 
 function Workspace() {
   const { state, dispatch, activeLayout, selectedNode, activeLayoutIssues } = useProject()
@@ -162,11 +177,9 @@ function Workspace() {
   const handleRoleChange = (role) => {
     updateUserRole(role)
     setUserRole(role)
+    setMapLayers((current) => layersForRole(role, current))
     if (role !== 'engineer') {
       setEditLayoutMode(false)
-    }
-    if (role === 'maintenance') {
-      setMapLayers((current) => ({ ...current, maintenance: true, sensors: true }))
     }
     if (role === 'manager') {
       setShowTimeline(false)
@@ -201,6 +214,8 @@ function Workspace() {
     handleRoleChange('operator')
   }
 
+  const effectiveMapLayers = useMemo(() => layersForRole(userRole, mapLayers), [userRole, mapLayers])
+
   return (
     <>
       <ProjectToolbar
@@ -220,7 +235,7 @@ function Workspace() {
         onRoleChange={handleRoleChange}
         onCreateLayout={handleCreateLayout}
       />
-      <main className={`app-shell view-${lensMode} ${editLayoutMode ? 'edit-layout-open' : ''}`}>
+      <main className={`app-shell view-${lensMode} view-${userRole} ${editLayoutMode ? 'edit-layout-open' : ''}`}>
         <section className={`scene-panel ${!editLayoutMode && equipmentDetails ? 'equipment-open' : ''}`}>
           <PlantScene
             project={state.project}
@@ -229,7 +244,7 @@ function Workspace() {
             sceneCommand={state.ui.sceneCommand}
             onSelect={handleSceneSelect}
             onFocusNode={focusNode}
-            mapLayers={mapLayers}
+            mapLayers={effectiveMapLayers}
             onViewportChange={setSceneViewport}
             editLayoutMode={editLayoutMode}
             lensMode={lensMode}
@@ -267,7 +282,7 @@ function Workspace() {
               <MapSidebar
                 layout={presentedLayout}
                 selectedDetails={null}
-                mapLayers={mapLayers}
+                mapLayers={effectiveMapLayers}
                 onToggleLayer={(layerId) => setMapLayers((current) => ({ ...current, [layerId]: !current[layerId] }))}
                 onClearSelection={() => dispatch({ type: 'select-node', nodeId: null })}
                 onFocusOrigin={handleFocusOrigin}
@@ -279,7 +294,16 @@ function Workspace() {
                 showSections={showSections}
               />
 
-              {lensMode === 'micro' ? <ParameterDrawer /> : null}
+              <RoleViewPanel
+                role={userRole}
+                layout={presentedLayout}
+                kpis={kpis}
+                selectedDetails={equipmentDetails}
+                onShowHistory={handleShowHistory}
+                onFocusAffected={handleFocusAffected}
+              />
+
+              {lensMode === 'micro' && userRole !== 'manager' ? <ParameterDrawer /> : null}
 
               <MiniMap
                 layout={presentedLayout}

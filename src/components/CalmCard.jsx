@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -34,10 +34,28 @@ export function CalmCard({
   const [insightOpen, setInsightOpen] = useState(false)
   const [ticketCreated, setTicketCreated] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
+  const cardRef = useRef(null)
   const { cardPosition, calmMinimized, showJson, jsonDraft, jsonError } = state.ui
   const activeLayout = layoutProp ?? activeLayoutFromStore
   const selectedNode = selectedNodeProp ?? selectedNodeFromStore
   const activeLayoutIssues = issuesProp ?? issuesFromStore
+
+  useEffect(() => {
+    const card = cardRef.current
+    if (!card) return
+
+    const rect = card.getBoundingClientRect()
+    const maxX = Math.max(8, window.innerWidth - rect.width - 8)
+    const maxY = Math.max(8, window.innerHeight - rect.height - 8)
+    const nextPosition = {
+      x: clamp(cardPosition.x, 8, maxX),
+      y: clamp(cardPosition.y, 8, maxY),
+    }
+
+    if (nextPosition.x !== cardPosition.x || nextPosition.y !== cardPosition.y) {
+      dispatch({ type: 'set-card-position', position: nextPosition })
+    }
+  }, [cardPosition.x, cardPosition.y, calmMinimized, dispatch, insightOpen])
 
   const startDrag = (event) => {
     const card = event.currentTarget.closest('.calm-card')
@@ -87,6 +105,7 @@ export function CalmCard({
   if (calmMinimized) {
     return (
       <section
+        ref={cardRef}
         className={`calm-card minimized calm-card-dock ${dragging ? 'dragging' : ''}`}
         style={{ left: cardPosition.x, top: cardPosition.y }}
       >
@@ -107,7 +126,7 @@ export function CalmCard({
   }
 
   return (
-    <section className={`calm-card calm-card-compact ${insightOpen ? 'rca-open' : ''} ${dragging ? 'dragging' : ''}`} style={{ left: cardPosition.x, top: cardPosition.y }}>
+    <section ref={cardRef} className={`calm-card calm-card-compact ${insightOpen ? 'rca-open' : ''} ${dragging ? 'dragging' : ''}`} style={{ left: cardPosition.x, top: cardPosition.y }}>
       <header className="calm-card-grip">
         <span className="grip-handle" onPointerDown={startDrag}>
           <GripHorizontal size={17} />

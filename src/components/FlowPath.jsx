@@ -10,6 +10,22 @@ const routePalette = {
   alarm: { color: '#d94a35', radius: 0.062, opacity: 1, particle: '#ffd6b8', speed: 0.07 },
 }
 
+const mediumPalette = {
+  'dc-power': { color: '#d8432f', radius: 0.052, opacity: 0.96, particle: '#ffb3a8', speed: 0.12 },
+  'ac-power': { color: '#1d5eb6', radius: 0.052, opacity: 0.96, particle: '#a9d5ff', speed: 0.13 },
+  rs485: { color: '#00a7bd', radius: 0.028, opacity: 0.88, particle: '#94f1ff', speed: 0.1 },
+  signal: { color: '#0f7a55', radius: 0.032, opacity: 0.82, particle: '#9ce7c5', speed: 0.09 },
+  power: { color: '#172027', radius: 0.048, opacity: 0.88, particle: '#d6dde0', speed: 0.08 },
+}
+
+function resolveRoutePalette(route) {
+  if (route.state === 'inactive') return routePalette.inactive
+  return {
+    ...(routePalette[route.state] ?? routePalette.active),
+    ...(mediumPalette[route.medium] ?? {}),
+  }
+}
+
 function Tube({ points, color, radius = 0.052, opacity = 1 }) {
   const curve = useMemo(() => new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(...point))), [points])
   const geometry = useMemo(() => new THREE.TubeGeometry(curve, 96, radius, 12, false), [curve, radius])
@@ -77,9 +93,9 @@ export function FlowPath({ layout, library, routes }) {
       {routes.map((route) => {
         const points = resolveRoutePoints(route, layout, library)
         if (points.length < 2) return null
-        const palette = routePalette[route.state] ?? routePalette.inactive
+        const palette = resolveRoutePalette(route)
 
-        if (route.style?.dashed || route.state === 'downstream') {
+        if (route.style?.dashed || route.state === 'downstream' || route.medium === 'rs485' || route.medium === 'signal') {
           return <DashedFlow key={route.id} points={points} color={palette.color} radius={palette.radius} particle={palette.particle} speed={palette.speed} />
         }
 

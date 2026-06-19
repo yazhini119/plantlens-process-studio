@@ -540,6 +540,329 @@ export function PackagingSymbol({ station, style }) {
   )
 }
 
+function DINModuleShell({ style, width = 0.62, height = 0.72, depth = 0.4, position = [0, 0.08, 0], accent = '#1d5eb6' }) {
+  return (
+    <group position={position}>
+      <RoundedBox args={[width, height, depth]} radius={0.035}>
+        <SchematicMaterial color={style.fill} opacity={style.opacity} roughness={0.5} />
+        <Outline color={style.edge} />
+      </RoundedBox>
+      <mesh position={[0, height * 0.2, depth * 0.51]}>
+        <boxGeometry args={[width * 0.52, height * 0.08, 0.018]} />
+        <meshStandardMaterial color={accent} transparent opacity={style.opacity * 0.86} roughness={0.36} />
+      </mesh>
+      <mesh position={[0, -height * 0.12, depth * 0.52]}>
+        <boxGeometry args={[width * 0.48, height * 0.22, 0.02]} />
+        <meshStandardMaterial color="#fdfefe" transparent opacity={style.opacity * 0.32} roughness={0.2} />
+      </mesh>
+    </group>
+  )
+}
+
+function TerminalDots({ style, count = 4, position = [0, 0, 0], spacing = 0.12 }) {
+  return (
+    <group position={position}>
+      {Array.from({ length: count }).map((_, index) => (
+        <mesh key={index} position={[(index - (count - 1) / 2) * spacing, 0, 0]}>
+          <cylinderGeometry args={[0.026, 0.026, 0.018, 12]} />
+          <SchematicMaterial color={style.secondary} opacity={style.opacity} metalness={0.18} roughness={0.42} />
+          <Outline color={style.edge} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+export function PanelBackplateSymbol({ style }) {
+  return (
+    <group>
+      <RoundedBox args={[4.9, 0.08, 2.35]} radius={0.045} position={[0, -0.42, 0]}>
+        <meshStandardMaterial color="#e3e9e7" roughness={0.82} metalness={0.05} transparent opacity={style.opacity * 0.9} />
+        <Outline color="#b6c1c0" />
+      </RoundedBox>
+      <mesh position={[0, -0.36, 0]}>
+        <boxGeometry args={[4.5, 0.035, 0.08]} />
+        <meshStandardMaterial color="#b9c4c3" roughness={0.66} metalness={0.18} transparent opacity={style.opacity * 0.72} />
+      </mesh>
+      <mesh position={[0, -0.35, -0.72]}>
+        <boxGeometry args={[4.3, 0.03, 0.055]} />
+        <meshStandardMaterial color="#c5cfce" roughness={0.7} metalness={0.16} transparent opacity={style.opacity * 0.64} />
+      </mesh>
+    </group>
+  )
+}
+
+export function DcSourceSymbol({ style }) {
+  return (
+    <group>
+      <SkidBase style={style} args={[1.02, 0.12, 0.62]} position={[0, -0.34, 0]} />
+      <RoundedBox args={[0.82, 0.64, 0.5]} radius={0.05} position={[0, 0.08, 0]}>
+        <SchematicMaterial color={style.fill} opacity={style.opacity} roughness={0.54} />
+        <Outline color={style.edge} />
+      </RoundedBox>
+      <mesh position={[-0.18, 0.18, 0.27]}>
+        <boxGeometry args={[0.12, 0.24, 0.02]} />
+        <meshStandardMaterial color="#d8432f" transparent opacity={style.opacity} />
+      </mesh>
+      <mesh position={[0.18, 0.18, 0.27]}>
+        <boxGeometry args={[0.12, 0.24, 0.02]} />
+        <meshStandardMaterial color="#172027" transparent opacity={style.opacity} />
+      </mesh>
+      <TerminalDots style={style} count={2} position={[0, -0.16, 0.28]} spacing={0.36} />
+    </group>
+  )
+}
+
+export function AcMainsSymbol({ style }) {
+  return (
+    <group>
+      <SkidBase style={style} args={[1.02, 0.12, 0.62]} position={[0, -0.34, 0]} />
+      <RoundedBox args={[0.82, 0.64, 0.5]} radius={0.05} position={[0, 0.08, 0]}>
+        <SchematicMaterial color={style.fill} opacity={style.opacity} roughness={0.54} />
+        <Outline color={style.edge} />
+      </RoundedBox>
+      <mesh position={[0, 0.18, 0.27]}>
+        <torusGeometry args={[0.18, 0.018, 8, 32]} />
+        <meshStandardMaterial color="#1d5eb6" transparent opacity={style.opacity} roughness={0.32} />
+      </mesh>
+      <TerminalDots style={style} count={3} position={[0, -0.16, 0.28]} spacing={0.2} />
+    </group>
+  )
+}
+
+export function FuseBlockSymbol({ style }) {
+  return (
+    <group>
+      <DINModuleShell style={style} width={0.56} height={0.7} depth={0.38} accent="#d8432f" />
+      <mesh position={[0, 0.14, 0.22]}>
+        <boxGeometry args={[0.28, 0.05, 0.018]} />
+        <meshStandardMaterial color="#d8432f" transparent opacity={style.opacity} />
+      </mesh>
+      <TerminalDots style={style} count={2} position={[0, -0.24, 0.22]} spacing={0.24} />
+    </group>
+  )
+}
+
+export function McbBreakerSymbol({ style }) {
+  return (
+    <group>
+      <DINModuleShell style={style} width={0.62} height={0.78} depth={0.42} accent="#172027" />
+      <mesh position={[0.02, 0.03, 0.24]} rotation={[0, 0, -0.42]}>
+        <boxGeometry args={[0.12, 0.28, 0.026]} />
+        <meshStandardMaterial color="#172027" transparent opacity={style.opacity} />
+      </mesh>
+      <TerminalDots style={style} count={2} position={[0, -0.28, 0.24]} spacing={0.28} />
+    </group>
+  )
+}
+
+export function ChargerSymbol({ style }) {
+  return (
+    <group>
+      <SkidBase style={style} args={[1.08, 0.12, 0.68]} position={[0, -0.34, 0]} />
+      <RoundedBox args={[0.96, 0.74, 0.56]} radius={0.045} position={[0, 0.12, 0]}>
+        <SchematicMaterial color={style.fill} opacity={style.opacity} roughness={0.56} />
+        <Outline color={style.edge} />
+      </RoundedBox>
+      {[0.16, 0.02, -0.12].map((y) => (
+        <mesh key={y} position={[0.18, y, 0.3]}>
+          <boxGeometry args={[0.36, 0.032, 0.018]} />
+          <meshStandardMaterial color="#88979b" transparent opacity={style.opacity * 0.72} />
+        </mesh>
+      ))}
+      <StatusLamp style={style} position={[-0.28, 0.24, 0.28]} active />
+      <TerminalDots style={style} count={4} position={[0, -0.24, 0.3]} spacing={0.16} />
+    </group>
+  )
+}
+
+export function LithiumBatterySymbol({ station, style }) {
+  const charge = parsePercent(readParameter(station, 'State of Charge', '82%'), 0.82)
+
+  return (
+    <group>
+      <SkidBase style={style} args={[1.58, 0.14, 0.78]} position={[0, -0.34, 0]} />
+      <RoundedBox args={[1.36, 0.62, 0.58]} radius={0.05} position={[0, 0.04, 0]}>
+        <SchematicMaterial color={style.fill} opacity={style.opacity} roughness={0.52} />
+        <Outline color={style.edge} />
+      </RoundedBox>
+      <mesh position={[0, 0.08, 0.31]}>
+        <boxGeometry args={[1.0, 0.12, 0.018]} />
+        <meshStandardMaterial color="#eef4f2" transparent opacity={style.opacity * 0.42} />
+      </mesh>
+      <mesh position={[-0.5 + charge * 0.5, 0.08, 0.33]}>
+        <boxGeometry args={[Math.max(0.08, charge * 0.92), 0.07, 0.02]} />
+        <meshStandardMaterial color={charge > 0.35 ? '#17805e' : '#d8432f'} transparent opacity={style.opacity} />
+      </mesh>
+      <TerminalDots style={style} count={2} position={[0, -0.22, 0.31]} spacing={0.9} />
+    </group>
+  )
+}
+
+export function SolarInverterSymbol({ station, style }) {
+  const load = parsePercent(readParameter(station, 'Inverter Load', '47%'), 0.47)
+
+  return (
+    <group>
+      <SkidBase style={style} args={[1.24, 0.14, 0.72]} position={[0, -0.36, 0]} />
+      <RoundedBox args={[1.12, 0.92, 0.58]} radius={0.055} position={[0, 0.18, 0]}>
+        <SchematicMaterial color={style.fill} opacity={style.opacity} roughness={0.52} />
+        <Outline color={style.edge} />
+      </RoundedBox>
+      <RoundedBox args={[0.56, 0.22, 0.035]} radius={0.015} position={[-0.12, 0.36, 0.31]}>
+        <meshStandardMaterial color="#172027" transparent opacity={style.opacity * 0.88} roughness={0.2} />
+      </RoundedBox>
+      <mesh position={[-0.12 - 0.24 + load * 0.23, 0.36, 0.335]}>
+        <boxGeometry args={[Math.max(0.05, load * 0.42), 0.045, 0.018]} />
+        <meshStandardMaterial color="#d8b700" transparent opacity={style.opacity} />
+      </mesh>
+      {[-0.34, -0.18, -0.02, 0.14, 0.3].map((x) => (
+        <mesh key={x} position={[x, -0.08, 0.31]}>
+          <boxGeometry args={[0.028, 0.28, 0.018]} />
+          <meshStandardMaterial color="#879398" transparent opacity={style.opacity * 0.58} />
+        </mesh>
+      ))}
+      <StatusLamp style={style} position={[0.34, 0.36, 0.31]} active />
+      <TerminalDots style={style} count={4} position={[0, -0.25, 0.32]} spacing={0.18} />
+    </group>
+  )
+}
+
+export function VfdDriveSymbol({ station, style }) {
+  const running = isTruthyStatus(readParameter(station, 'Drive Status', 'Running'))
+
+  return (
+    <group>
+      <SkidBase style={style} args={[0.98, 0.12, 0.62]} position={[0, -0.35, 0]} />
+      <RoundedBox args={[0.86, 0.92, 0.48]} radius={0.045} position={[0, 0.18, 0]}>
+        <SchematicMaterial color={style.fill} opacity={style.opacity} roughness={0.54} />
+        <Outline color={style.edge} />
+      </RoundedBox>
+      <RoundedBox args={[0.44, 0.24, 0.03]} radius={0.014} position={[0, 0.44, 0.26]}>
+        <meshStandardMaterial color="#16212a" transparent opacity={style.opacity * 0.88} />
+      </RoundedBox>
+      <mesh position={[0, 0.44, 0.28]}>
+        <boxGeometry args={[0.26, 0.032, 0.018]} />
+        <meshStandardMaterial color="#6ee7b7" emissive="#6ee7b7" emissiveIntensity={0.28} transparent opacity={style.opacity} />
+      </mesh>
+      <StatusLamp style={style} position={[0.28, 0.18, 0.26]} active={running} />
+      <TerminalDots style={style} count={5} position={[0, -0.27, 0.26]} spacing={0.13} />
+    </group>
+  )
+}
+
+export function AcMotorLoadSymbol({ station, style }) {
+  const vibration = parseNumber(readParameter(station, 'Vibration', '2.4 mm/s'), 2.4)
+
+  return (
+    <group>
+      <SkidBase style={style} args={[1.35, 0.14, 0.78]} position={[0, -0.36, 0]} />
+      <MotorBody style={style} position={[-0.24, 0.04, 0]} />
+      <mesh position={[0.48, 0.04, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.24, 0.24, 0.34, 28]} />
+        <SchematicMaterial color={style.fill} opacity={style.opacity} roughness={0.42} />
+        <Outline color={style.edge} />
+      </mesh>
+      <mesh position={[0.74, 0.04, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <torusGeometry args={[0.2 + vibration * 0.01, 0.018, 8, 32]} />
+        <SchematicMaterial color={style.secondary} opacity={style.opacity} />
+      </mesh>
+      <SensorHead style={style} position={[0.1, 0.56, 0.24]} radius={0.13} />
+      <StatusLamp style={style} position={[-0.44, 0.24, 0.24]} active />
+    </group>
+  )
+}
+
+export function MfmMeterSymbol({ station, style }) {
+  const rs485Healthy = isTruthyStatus(readParameter(station, 'RS485 Health', 'Online'))
+
+  return (
+    <group>
+      <DINModuleShell style={style} width={0.66} height={0.68} depth={0.42} accent="#1d5eb6" />
+      <RoundedBox args={[0.42, 0.18, 0.03]} radius={0.014} position={[0, 0.18, 0.24]}>
+        <meshStandardMaterial color="#172027" transparent opacity={style.opacity * 0.9} />
+      </RoundedBox>
+      <mesh position={[0, 0.18, 0.265]}>
+        <boxGeometry args={[0.22, 0.026, 0.018]} />
+        <meshStandardMaterial color="#d8b700" transparent opacity={style.opacity} />
+      </mesh>
+      <StatusLamp style={style} position={[0.23, -0.06, 0.24]} active={rs485Healthy} />
+      <TerminalDots style={style} count={4} position={[0, -0.24, 0.24]} spacing={0.13} />
+    </group>
+  )
+}
+
+export function PlcRackSymbol({ style }) {
+  return (
+    <group>
+      <SkidBase style={style} args={[1.5, 0.12, 0.62]} position={[0, -0.35, 0]} />
+      <RoundedBox args={[1.38, 0.72, 0.48]} radius={0.04} position={[0, 0.12, 0]}>
+        <SchematicMaterial color={style.fill} opacity={style.opacity} roughness={0.52} />
+        <Outline color={style.edge} />
+      </RoundedBox>
+      {[-0.48, -0.22, 0.04, 0.3, 0.56].map((x, index) => (
+        <RoundedBox key={x} args={[0.18, 0.56, 0.05]} radius={0.012} position={[x, 0.12, 0.27]}>
+          <meshStandardMaterial color={index === 0 ? '#172027' : '#eef2f2'} transparent opacity={style.opacity * 0.82} />
+          <Outline color={style.edge} />
+        </RoundedBox>
+      ))}
+      <StatusLamp style={style} position={[-0.55, 0.35, 0.31]} active />
+      <TerminalDots style={style} count={8} position={[0.08, -0.2, 0.3]} spacing={0.12} />
+    </group>
+  )
+}
+
+export function HmiPanelSymbol({ style }) {
+  return (
+    <group>
+      <SkidBase style={style} args={[0.98, 0.12, 0.58]} position={[0, -0.35, 0]} />
+      <RoundedBox args={[0.94, 0.58, 0.12]} radius={0.035} position={[0, 0.08, 0.18]}>
+        <SchematicMaterial color={style.secondary} opacity={style.opacity} roughness={0.42} />
+        <Outline color={style.edge} />
+      </RoundedBox>
+      <RoundedBox args={[0.76, 0.42, 0.035]} radius={0.02} position={[0, 0.08, 0.25]}>
+        <meshStandardMaterial color="#13202a" transparent opacity={style.opacity * 0.92} />
+      </RoundedBox>
+      <mesh position={[-0.16, 0.12, 0.28]}>
+        <boxGeometry args={[0.34, 0.05, 0.018]} />
+        <meshStandardMaterial color="#1d5eb6" transparent opacity={style.opacity} />
+      </mesh>
+      <mesh position={[0.18, -0.02, 0.28]}>
+        <boxGeometry args={[0.22, 0.04, 0.018]} />
+        <meshStandardMaterial color="#d8b700" transparent opacity={style.opacity} />
+      </mesh>
+    </group>
+  )
+}
+
+export function Rs485BusSymbol({ style }) {
+  return (
+    <group>
+      <mesh position={[0, -0.28, 0]}>
+        <boxGeometry args={[1.55, 0.08, 0.16]} />
+        <SchematicMaterial color={style.secondary} opacity={style.opacity} metalness={0.14} roughness={0.46} />
+        <Outline color={style.edge} />
+      </mesh>
+      {[-0.62, -0.32, 0, 0.32, 0.62].map((x) => (
+        <mesh key={x} position={[x, -0.19, 0]}>
+          <cylinderGeometry args={[0.026, 0.026, 0.16, 10]} />
+          <meshStandardMaterial color="#1d5eb6" transparent opacity={style.opacity} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+export function IoCardSymbol({ style }) {
+  return (
+    <group>
+      <DINModuleShell style={style} width={0.62} height={0.72} depth={0.38} accent="#0f7a55" />
+      <TerminalDots style={style} count={6} position={[0, -0.24, 0.22]} spacing={0.1} />
+      <StatusLamp style={style} position={[0.21, 0.1, 0.22]} active />
+    </group>
+  )
+}
+
 export function GenericMachineSymbol({ station, style }) {
   const available = parsePercent(readParameter(station, 'Availability', '95%'), 0.95)
 

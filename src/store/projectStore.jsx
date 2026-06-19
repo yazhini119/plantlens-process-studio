@@ -133,6 +133,9 @@ function routeMediumFromConnectionType(connectionType) {
     processFlow: 'liquid',
     signal: 'signal',
     power: 'power',
+    dcPower: 'dc-power',
+    acPower: 'ac-power',
+    rs485: 'rs485',
     alarmDependency: 'signal',
     utilityLine: 'air',
   }
@@ -140,7 +143,7 @@ function routeMediumFromConnectionType(connectionType) {
 }
 
 function routeStyleFromConnectionType(connectionType) {
-  return connectionType === 'signal' || connectionType === 'alarmDependency' || connectionType === 'utilityLine'
+  return connectionType === 'signal' || connectionType === 'rs485' || connectionType === 'alarmDependency' || connectionType === 'utilityLine'
     ? { dashed: true }
     : {}
 }

@@ -8,6 +8,13 @@ function routeKey(nodeId, portId) {
   return `${nodeId}:${portId}`
 }
 
+function mediumMatches(portMedium, routeMedium) {
+  if (portMedium === routeMedium) return true
+  if (portMedium === 'power' && ['dc-power', 'ac-power'].includes(routeMedium)) return true
+  if (routeMedium === 'power' && ['dc-power', 'ac-power'].includes(portMedium)) return true
+  return false
+}
+
 export function validateProjectDocument(project) {
   const issues = []
   const tags = new Map()
@@ -59,7 +66,7 @@ export function validateProjectDocument(project) {
       connectedPorts.add(routeKey(fromNode.id, fromPort.id))
       connectedPorts.add(routeKey(toNode.id, toPort.id))
 
-      if (fromPort.medium !== route.medium || toPort.medium !== route.medium) {
+      if (!mediumMatches(fromPort.medium, route.medium) || !mediumMatches(toPort.medium, route.medium)) {
         issues.push(
           createIssue(
             layout.id,

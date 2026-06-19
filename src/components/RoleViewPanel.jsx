@@ -13,6 +13,22 @@ function summarizeProductionLoss(kpis) {
   return `${Math.max(0, 24 - Number.parseFloat(bottles || 0)).toFixed(0)} bottles/min at risk`
 }
 
+function maintenanceNote(layout, selectedDetails) {
+  const tag = selectedDetails?.tag ?? layout.insight.origin
+  if (layout.kind === 'power-panel') {
+    return `${tag}: verify MCB/fuse continuity, MFM polarity, inverter output, VFD status, RS485 termination, and motor temperature/vibration inputs.`
+  }
+  return `${tag}: inspect suction line, filter blockage, pump wear, and downstream fill impact.`
+}
+
+function impactSummary(layout, kpis) {
+  if (layout.kind === 'power-panel') {
+    const energy = kpis.find((item) => item.label === 'Energy Usage')?.value ?? 'live load'
+    return `Inverter-drive chain under watch: ${energy}, motor/load stability, and RS485 telemetry risk.`
+  }
+  return summarizeProductionLoss(kpis)
+}
+
 export function RoleViewPanel({ role, layout, kpis, selectedDetails, onShowHistory, onFocusAffected }) {
   if (role === 'operator' || role === 'engineer') return null
 
@@ -58,7 +74,7 @@ export function RoleViewPanel({ role, layout, kpis, selectedDetails, onShowHisto
         </div>
         <div className="role-note">
           <span>Open ticket</span>
-          <strong>{selectedDetails?.tag ?? layout.insight.origin}: inspect suction line, filter blockage, pump wear, and downstream fill impact.</strong>
+          <strong>{maintenanceNote(layout, selectedDetails)}</strong>
         </div>
       </aside>
     )
@@ -82,8 +98,8 @@ export function RoleViewPanel({ role, layout, kpis, selectedDetails, onShowHisto
         ))}
       </div>
       <div className="role-note">
-        <span>Production loss</span>
-        <strong>{summarizeProductionLoss(kpis)}</strong>
+        <span>{layout.kind === 'power-panel' ? 'Operational impact' : 'Production loss'}</span>
+        <strong>{impactSummary(layout, kpis)}</strong>
       </div>
       <div className="role-note">
         <span>Incident report</span>

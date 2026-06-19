@@ -30,14 +30,30 @@ function Bottles() {
   )
 }
 
-function PlantFloor({ showGrid, empty = false }) {
+function PlantFloor({ showGrid, empty = false, variant = 'process' }) {
+  const isPowerPanel = variant === 'power-panel'
+  const floorArgs = isPowerPanel ? [21.2, 0.05, 10.8] : empty ? [15.2, 0.035, 5.4] : [18.4, 0.06, 6.7]
+  const gridSize = isPowerPanel ? 20 : empty ? 14 : 18
+
   return (
     <group>
       <mesh position={[0, -0.05, 0]} receiveShadow>
-        <boxGeometry args={empty ? [15.2, 0.035, 5.4] : [18.4, 0.06, 6.7]} />
-        <meshStandardMaterial color={empty ? '#f8faf9' : '#f4f6f5'} roughness={0.96} transparent={empty} opacity={empty ? 0.72 : 1} />
+        <boxGeometry args={floorArgs} />
+        <meshStandardMaterial color={isPowerPanel ? '#f1f5f3' : empty ? '#f8faf9' : '#f4f6f5'} roughness={0.96} transparent={empty} opacity={empty ? 0.78 : 1} />
       </mesh>
-      {!empty
+      {isPowerPanel ? (
+        <>
+          <mesh position={[-1.2, 0, -1.0]} receiveShadow>
+            <boxGeometry args={[16.6, 0.035, 5.8]} />
+            <meshStandardMaterial color="#dce5e3" roughness={0.9} transparent opacity={0.34} />
+          </mesh>
+          <mesh position={[1.4, 0.025, -3.34]} receiveShadow>
+            <boxGeometry args={[14.2, 0.04, 0.22]} />
+            <meshStandardMaterial color="#c8d2d2" roughness={0.74} metalness={0.14} transparent opacity={0.52} />
+          </mesh>
+        </>
+      ) : null}
+      {!empty && !isPowerPanel
         ? [
             [0, 1.35, 16.2, 0.035, 0.92],
             [-3.2, -1.85, 5.2, 0.035, 1.1],
@@ -49,7 +65,7 @@ function PlantFloor({ showGrid, empty = false }) {
             </mesh>
           ))
         : null}
-      {showGrid ? <gridHelper args={[empty ? 14 : 18, empty ? 14 : 18, '#d6dcdb', '#ebefee']} position={[0, 0.02, 0]} /> : null}
+      {showGrid ? <gridHelper args={[gridSize, gridSize, '#d6dcdb', '#ebefee']} position={[0, 0.02, 0]} /> : null}
     </group>
   )
 }
@@ -357,7 +373,7 @@ export function PlantScene({
         target={viewState.target}
         onChange={handleControlsChange}
       />
-      <PlantFloor showGrid={project.views.showGrid} empty={!showDemoContext} />
+      <PlantFloor showGrid={project.views.showGrid} empty={isEmptyLayout} variant={layout.kind} />
       {showDemoContext ? <IndustrialDetails /> : null}
       {mapLayers.processFlow && !isEmptyLayout ? <FlowPath layout={layout} routes={visibleRoutes} library={project.library} /> : null}
       {showDemoContext ? <Bottles /> : null}

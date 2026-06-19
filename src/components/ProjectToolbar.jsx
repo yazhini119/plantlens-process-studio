@@ -24,10 +24,34 @@ import ZoomInAreaIcon from '@hugeicons/core-free-icons/ZoomInAreaIcon'
 import { useProject } from '../store/projectStore'
 
 const roleOptions = [
-  { id: 'operator', label: 'Operator' },
-  { id: 'maintenance', label: 'Maintenance' },
-  { id: 'engineer', label: 'Engineer' },
-  { id: 'manager', label: 'Manager' },
+  {
+    id: 'operator',
+    label: 'Operator',
+    view: 'Run view',
+    description: 'Live status, alarms, RCA card, and guided checks. No layout edits.',
+    capabilities: ['Acknowledge', 'Inspect asset', 'Open RCA'],
+  },
+  {
+    id: 'maintenance',
+    label: 'Maintenance',
+    view: 'Service view',
+    description: 'Health scores, vibration/temperature evidence, service ticket actions, and history.',
+    capabilities: ['Service assets', 'History', 'Maintenance layers'],
+  },
+  {
+    id: 'engineer',
+    label: 'Engineer',
+    view: 'Studio view',
+    description: 'Stencil library, routing, layout edits, validation, JSON configuration, and save/preview.',
+    capabilities: ['Edit layout', 'Connect routes', 'Validate'],
+  },
+  {
+    id: 'manager',
+    label: 'Manager',
+    view: 'Executive view',
+    description: 'Production impact, KPI summary, incident report, and energy view. Hides noisy controls.',
+    capabilities: ['Impact summary', 'KPI report', 'RCA export'],
+  },
 ]
 
 const lensOptions = [
@@ -69,6 +93,7 @@ export function ProjectToolbar({
   const ready = activeLayoutIssues.length === 0
   const engineerView = userRole === 'engineer'
   const canDeleteLayout = state.project.layouts.length > 1
+  const activeRoleSpec = roleOptions.find((role) => role.id === userRole) ?? roleOptions[0]
 
   return (
     <header className="project-toolbar product-toolbar">
@@ -207,12 +232,21 @@ export function ProjectToolbar({
                   className={userRole === role.id ? 'active' : ''}
                   type="button"
                   onClick={() => onRoleChange?.(role.id)}
-                  title={`${role.label} view`}
+                  title={`${role.view}: ${role.description}`}
                 >
                   {role.label}
                 </button>
               ))}
             </div>
+            <article className="role-capability-card">
+              <span>{activeRoleSpec.view}</span>
+              <strong>{activeRoleSpec.description}</strong>
+              <div>
+                {activeRoleSpec.capabilities.map((capability) => (
+                  <small key={capability}>{capability}</small>
+                ))}
+              </div>
+            </article>
           </div>
 
           {engineerView ? (

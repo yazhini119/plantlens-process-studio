@@ -9,6 +9,22 @@ const SCALE = 42
 const PADDING = 48
 const STATUS_OPTIONS = ['inactive', 'normal', 'origin', 'alarm', 'downstream']
 const STARTER_STENCIL_IDS = [
+  'panelBackplate',
+  'dcSource',
+  'acMains',
+  'fuseBlock',
+  'mcbBreaker',
+  'charger',
+  'lithiumBattery',
+  'solarInverter',
+  'vfdDrive',
+  'acMotorLoad',
+  'acMfm',
+  'dcMfm',
+  'plcRack',
+  'hmiPanel',
+  'rs485Bus',
+  'tempVibCard',
   'oipRollerConveyor',
   'oipRollerModule',
   'oipRollerCorner',
@@ -43,9 +59,14 @@ const CONNECTION_TYPES = [
   { id: 'processFlow', label: 'Process Flow' },
   { id: 'signal', label: 'Signal/Data' },
   { id: 'power', label: 'Power' },
+  { id: 'dcPower', label: 'DC Power Cable' },
+  { id: 'acPower', label: 'AC Power Cable' },
+  { id: 'rs485', label: 'RS485 Cable' },
   { id: 'alarmDependency', label: 'Alarm Dependency' },
   { id: 'utilityLine', label: 'Utility Line' },
 ]
+
+const CABLE_CONNECTION_TYPES = CONNECTION_TYPES.filter((type) => ['dcPower', 'acPower', 'rs485'].includes(type.id))
 function snap(value, step = 0.25) {
   return Math.round(value / step) * step
 }
@@ -222,8 +243,8 @@ export function LayoutWorkbench() {
 
   const contentWidth = Math.round((bounds.maxX - bounds.minX) * SCALE + PADDING * 2)
   const contentHeight = Math.round((bounds.maxZ - bounds.minZ) * SCALE + PADDING * 2)
-  const canvasWidth = Math.max(760, canvasViewport.width, contentWidth)
-  const canvasHeight = Math.max(300, canvasViewport.height, contentHeight)
+  const canvasWidth = Math.max(1120, canvasViewport.width, contentWidth)
+  const canvasHeight = Math.max(520, canvasViewport.height, contentHeight)
 
   const projectToCanvas = (point) => ({
     x: (point[0] - bounds.minX) * SCALE + PADDING,
@@ -571,6 +592,23 @@ export function LayoutWorkbench() {
             </div>
           </div>
           <div className="workbench-actions">
+            <div className="cable-route-strip" aria-label="Cable route tools">
+              {CABLE_CONNECTION_TYPES.map((type) => (
+                <button
+                  key={type.id}
+                  type="button"
+                  className={`cable-route-chip ${connectionType === type.id ? 'active' : ''}`}
+                  data-route-type={type.id}
+                  onClick={() => {
+                    setConnectionType(type.id)
+                    setConnectionSourceId(null)
+                    dispatch({ type: 'set-active-tool', tool: 'connect' })
+                  }}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
             <select
               className="connection-type-select"
               value={connectionType}
