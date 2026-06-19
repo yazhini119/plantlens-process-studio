@@ -377,7 +377,7 @@ export function LayoutWorkbench() {
     })
   }
 
-  const createEmptyLayout = () => {
+  const createScenarioLayout = () => {
     setConnectionSourceId(null)
     dispatch({ type: 'add-layout' })
     dispatch({ type: 'set-active-tool', tool: 'select' })
@@ -598,19 +598,19 @@ export function LayoutWorkbench() {
                 type="button"
                 onMouseDown={(event) => {
                   event.preventDefault()
-                  createEmptyLayout()
+                  createScenarioLayout()
                 }}
                 onClick={(event) => event.preventDefault()}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault()
-                    createEmptyLayout()
+                    createScenarioLayout()
                   }
                 }}
-                title="Create a new empty layout tab"
+                title="Create a tested scenario from the commissioned layout"
               >
                 <Plus size={14} />
-                New empty
+                New scenario
               </button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronsDown, ChevronsUp, GripHorizontal, Maximize2, Minimize2, Redo2, RotateCcw, Undo2 } from 'lucide-react'
 import './App.css'
 import { CalmCard } from './components/CalmCard'
@@ -116,6 +116,13 @@ function Workspace() {
     () => (presentedSelectedNode ? buildEquipmentDetails(presentedSelectedNode, presentedLayout) : null),
     [presentedSelectedNode, presentedLayout],
   )
+
+  useEffect(() => {
+    if (!editLayoutMode || activeLayout.nodes.length > 0 || !populatedDemoLayout) return
+    dispatch({ type: 'select-layout', layoutId: populatedDemoLayout.id })
+    dispatch({ type: 'set-active-tool', tool: 'select' })
+    dispatch({ type: 'send-scene-command', command: 'fit' })
+  }, [activeLayout.id, activeLayout.nodes.length, dispatch, editLayoutMode, populatedDemoLayout])
 
   const focusNode = (nodeId, sourceLayout = presentedLayout) => {
     const match = sourceLayout.nodes.find((node) => node.id === nodeId)

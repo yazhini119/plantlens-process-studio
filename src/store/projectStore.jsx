@@ -121,6 +121,29 @@ function createBlankLayout(project) {
   }
 }
 
+function createScenarioLayout(project) {
+  const populatedLayouts = project.layouts.filter((layout) => layout.nodes?.length > 0)
+  const activeLayout = project.layouts.find((layout) => layout.id === project.views.activeLayoutId)
+  const template =
+    (activeLayout?.nodes?.length ? activeLayout : null) ??
+    populatedLayouts.find((layout) => layout.kind === 'power-panel') ??
+    populatedLayouts.find((layout) => layout.kind === 'process') ??
+    populatedLayouts[0] ??
+    null
+
+  if (!template) return createBlankLayout(project)
+
+  const scenario = clone(template)
+  scenario.id = `layout-${Date.now().toString(36)}`
+  scenario.name = `${template.name.replace(/\s+Scenario\s+\d+$/i, '')} Scenario ${project.layouts.length + 1}`
+  scenario.camera = template.camera ? clone(template.camera) : { position: [7.8, 7.4, 9.2], target: [0, 0.55, 0], zoom: 62 }
+  scenario.insight = {
+    ...clone(template.insight ?? {}),
+    title: template.insight?.title ?? 'Commissioned scenario',
+  }
+  return scenario
+}
+
 function updateAnnotationTag(layout, nodeId, tag, status) {
   const annotation = layout.annotations.find((entry) => entry.nodeId === nodeId && entry.kind === 'callout')
   if (!annotation) return
@@ -398,7 +421,7 @@ function reducer(state, action) {
 
     case 'add-layout':
       return commitProject(state, (project) => {
-        const layout = createBlankLayout(project)
+        const layout = createScenarioLayout(project)
         project.layouts.push(layout)
         project.views.activeLayoutId = layout.id
         project.views.selectedIds = []

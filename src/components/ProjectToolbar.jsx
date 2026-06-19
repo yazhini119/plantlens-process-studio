@@ -29,36 +29,36 @@ const roleOptions = [
     id: 'operator',
     label: 'Operator',
     view: 'Run view',
-    description: 'Live status, alarms, RCA card, and guided checks. No layout edits.',
+    description: 'Live status, alarms, RCA, and guided checks.',
     capabilities: ['Acknowledge', 'Inspect asset', 'Open RCA'],
-    scope: 'Sees live process state, active events, guided RCA, and operator-safe parameters.',
-    approval: 'Can request maintenance approval; cannot approve wiring or configuration changes.',
+    scope: 'Sees process state, active events, and operator-safe parameters.',
+    approval: 'Can request service approval; cannot edit wiring or topology.',
   },
   {
     id: 'maintenance',
     label: 'Maintenance',
     view: 'Service view',
-    description: 'Health scores, vibration/temperature evidence, service ticket actions, and history.',
+    description: 'Health evidence, tickets, inspection, and history.',
     capabilities: ['Service assets', 'History', 'Maintenance layers'],
-    scope: 'Sees service health, wiring checks, meter evidence, asset history, and field notes.',
-    approval: 'Can approve inspection completion and request engineer sign-off for wiring changes.',
+    scope: 'Sees service health, wiring checks, meter evidence, and field notes.',
+    approval: 'Can close inspections and request engineer sign-off.',
   },
   {
     id: 'engineer',
     label: 'Engineer',
     view: 'Studio view',
-    description: 'Stencil library, routing, layout edits, validation, JSON configuration, and save/preview.',
+    description: 'Topology, routing, validation, JSON, and publishing.',
     capabilities: ['Edit layout', 'Connect routes', 'Validate'],
-    scope: 'Sees full topology, route validation, JSON config, layer controls, and edit tools.',
-    approval: 'Can approve configuration changes and publish the operator-ready view.',
+    scope: 'Sees full topology, route validation, layers, and edit tools.',
+    approval: 'Can approve configuration changes and publish the ready view.',
   },
   {
     id: 'manager',
     label: 'Manager',
     view: 'Executive view',
-    description: 'Production impact, KPI summary, incident report, and energy view. Hides noisy controls.',
+    description: 'KPIs, impact, incident summary, and approvals.',
     capabilities: ['Impact summary', 'KPI report', 'RCA export'],
-    scope: 'Sees KPIs, risk, energy, approval status, and business impact only.',
+    scope: 'Sees KPI risk, energy, approval status, and business impact.',
     approval: 'Can approve downtime or escalation; cannot edit plant topology.',
   },
 ]
@@ -278,11 +278,11 @@ export function ProjectToolbar({
               <button
                 className="icon-chip new-layout-chip"
                 onClick={() => (onCreateLayout ? onCreateLayout() : dispatch({ type: 'add-layout' }))}
-                title="Create an empty industrial layout tab"
+                title="Create a tested scenario layout"
                 type="button"
               >
                 <ToolIcon icon={Add01Icon} size={16} />
-                <span>New</span>
+                <span>Scenario</span>
               </button>
               <button
                 className="icon-chip delete-layout-chip danger"

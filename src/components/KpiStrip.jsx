@@ -14,6 +14,7 @@ export function KpiStrip({ items, collapsed = false, onToggle }) {
   const { state, dispatch } = useProject()
   const panelRef = useRef(null)
   const [dragging, setDragging] = useState(false)
+  const [expanded, setExpanded] = useState(!collapsed)
   const { signalTrayPosition } = state.ui
 
   useEffect(() => {
@@ -27,7 +28,12 @@ export function KpiStrip({ items, collapsed = false, onToggle }) {
     if (nextPosition.x !== signalTrayPosition.x || nextPosition.y !== signalTrayPosition.y) {
       dispatch({ type: 'set-signal-tray-position', position: nextPosition })
     }
-  }, [collapsed, dispatch, signalTrayPosition.x, signalTrayPosition.y])
+  }, [dispatch, expanded, signalTrayPosition.x, signalTrayPosition.y])
+
+  const toggleExpanded = () => {
+    setExpanded((current) => !current)
+    onToggle?.()
+  }
 
   const startDrag = (event) => {
     const panel = panelRef.current
@@ -60,17 +66,32 @@ export function KpiStrip({ items, collapsed = false, onToggle }) {
     window.addEventListener('pointerup', stop)
   }
 
-  if (collapsed) {
-    const primary = items[0]
+  if (!expanded) {
+    const compactItems = items.slice(0, 3)
     return (
-      <section ref={panelRef} className={`signal-tray-dock ${dragging ? 'dragging' : ''}`} style={{ left: signalTrayPosition.x, top: signalTrayPosition.y }}>
-        <span className="overlay-grip" onPointerDown={startDrag} title="Move signals">
+      <section ref={panelRef} className={`signal-tray-dock ${dragging ? 'dragging' : ''}`} style={{ left: signalTrayPosition.x, top: signalTrayPosition.y }} onClick={toggleExpanded}>
+        <span className="overlay-grip" onClick={(event) => event.stopPropagation()} onPointerDown={startDrag} title="Move signals">
           <GripHorizontal size={15} />
         </span>
-        <button type="button" onClick={onToggle} title="Open live signal tray">
+        <button
+          className="signal-dock-summary"
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            toggleExpanded()
+          }}
+          title="Open live signal tray"
+        >
           <HugeiconsIcon icon={DashboardSpeed02Icon} size={18} strokeWidth={1.8} />
-          <span>Signals</span>
-          <strong>{primary ? `${primary.label}: ${primary.value}` : 'Open'}</strong>
+          <span>Live signals</span>
+          <strong className="signal-dock-metrics">
+            {compactItems.length ? compactItems.map((item) => (
+              <small key={item.label} className={item.tone ?? 'normal'}>
+                <span>{item.label}</span>
+                <b>{item.value}</b>
+              </small>
+            )) : <small>Open telemetry</small>}
+          </strong>
           <HugeiconsIcon icon={ViewIcon} size={16} strokeWidth={1.8} />
         </button>
       </section>
@@ -79,7 +100,7 @@ export function KpiStrip({ items, collapsed = false, onToggle }) {
 
   return (
     <section ref={panelRef} className={`kpi-strip ${dragging ? 'dragging' : ''}`} style={{ left: signalTrayPosition.x, top: signalTrayPosition.y }}>
-      <button className="signal-tray-close" type="button" onClick={onToggle} title="Collapse live signal tray">
+      <button className="signal-tray-close" type="button" onClick={toggleExpanded} title="Collapse live signal tray">
         <span className="overlay-grip" onPointerDown={startDrag} title="Move signals">
           <GripHorizontal size={14} />
         </span>
