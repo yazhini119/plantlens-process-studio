@@ -76,6 +76,16 @@ const tools = [
   { id: 'inspect', icon: MapsSearchIcon, title: 'Inspect layout' },
 ]
 
+const STUDIO_PANEL_WIDTH = 444
+
+function getStudioDockPosition() {
+  if (typeof window === 'undefined') return { x: 930, y: 78 }
+  return {
+    x: Math.max(12, window.innerWidth - STUDIO_PANEL_WIDTH - 18),
+    y: Math.max(76, Math.min(110, window.innerHeight - 420)),
+  }
+}
+
 function ToolIcon({ icon, size = 17 }) {
   return <HugeiconsIcon icon={icon} size={size} strokeWidth={1.85} />
 }
@@ -100,11 +110,9 @@ export function ProjectToolbar({
   const { state, dispatch, canUndo, canRedo, activeLayoutIssues } = useProject()
   const [studioOpen, setStudioOpen] = useState(false)
   const [studioMinimized, setStudioMinimized] = useState(false)
+  const [studioExpanded, setStudioExpanded] = useState(false)
   const [studioDragging, setStudioDragging] = useState(false)
-  const [studioPosition, setStudioPosition] = useState(() => ({
-    x: Math.max(12, Math.round(((typeof window === 'undefined' ? 1440 : window.innerWidth) - 1180) / 2)),
-    y: 66,
-  }))
+  const [studioPosition, setStudioPosition] = useState(getStudioDockPosition)
   const ready = activeLayoutIssues.length === 0
   const engineerView = userRole === 'engineer'
   const canDeleteLayout = state.project.layouts.length > 1
@@ -199,7 +207,16 @@ export function ProjectToolbar({
 
         <button
           className={`icon-chip menu-chip ${studioOpen ? 'active' : ''}`}
-          onClick={() => setStudioOpen((current) => !current)}
+          onClick={() =>
+            setStudioOpen((current) => {
+              const next = !current
+              if (next) {
+                setStudioMinimized(false)
+                setStudioExpanded(false)
+                setStudioPosition(getStudioDockPosition())
+              }
+              return next
+            })}
           type="button"
           title="Open studio controls"
         >
@@ -209,7 +226,7 @@ export function ProjectToolbar({
 
       {studioOpen ? (
         <section
-          className={`toolbar-studio-panel ${studioMinimized ? 'minimized' : ''} ${studioDragging ? 'dragging' : ''}`}
+          className={`toolbar-studio-panel ${studioMinimized ? 'minimized' : ''} ${studioExpanded ? 'expanded' : ''} ${studioDragging ? 'dragging' : ''}`}
           aria-label="Studio controls"
           style={{ left: studioPosition.x, top: studioPosition.y }}
         >
@@ -223,6 +240,16 @@ export function ProjectToolbar({
             </div>
             <button type="button" title={studioMinimized ? 'Restore studio controls' : 'Minimize studio controls'} onClick={() => setStudioMinimized((value) => !value)}>
               {studioMinimized ? <Maximize2 size={15} /> : <Minimize2 size={15} />}
+            </button>
+            <button
+              type="button"
+              title={studioExpanded ? 'Compact studio controls' : 'Expand studio controls'}
+              onClick={() => {
+                setStudioMinimized(false)
+                setStudioExpanded((value) => !value)
+              }}
+            >
+              <Maximize2 size={15} />
             </button>
             <button type="button" title="Close studio controls" onClick={() => setStudioOpen(false)}>
               <X size={15} />

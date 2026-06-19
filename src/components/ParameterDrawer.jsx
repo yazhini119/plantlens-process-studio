@@ -6,7 +6,7 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
 }
 
-export function ParameterDrawer() {
+export function ParameterDrawer({ onClose }) {
   const { state, dispatch, selectedNode, activeNodeParameters, activeNodeValues } = useProject()
   const [dragging, setDragging] = useState(false)
   const [maximized, setMaximized] = useState(false)
@@ -70,7 +70,10 @@ export function ParameterDrawer() {
           type="button"
           title="Close parameter details"
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => dispatch({ type: 'select-node', nodeId: null })}
+          onClick={() => {
+            dispatch({ type: 'select-node', nodeId: null })
+            onClose?.()
+          }}
         >
           <X size={18} />
         </button>

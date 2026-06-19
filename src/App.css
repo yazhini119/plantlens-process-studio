@@ -6615,3 +6615,209 @@ body {
     gap: 6px;
   }
 }
+
+/* Enhanced ABB demo pass: compact studio dock, no accidental full-screen sheets. */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.toolbar-studio-panel {
+  width: min(444px, calc(100vw - 24px)) !important;
+  max-height: calc(100dvh - 92px) !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px !important;
+  padding: 8px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(23, 32, 39, 0.12) !important;
+  border-radius: 12px !important;
+  background: rgba(253, 254, 253, 0.97) !important;
+  box-shadow: 0 24px 70px rgba(22, 34, 43, 0.2) !important;
+  backdrop-filter: blur(18px) saturate(1.08);
+  z-index: 80 !important;
+}
+
+.toolbar-studio-panel.expanded {
+  width: min(760px, calc(100vw - 24px)) !important;
+  max-height: calc(100dvh - 86px) !important;
+}
+
+.toolbar-studio-panel.minimized {
+  width: min(320px, calc(100vw - 24px)) !important;
+  grid-template-rows: auto;
+}
+
+.studio-window-header {
+  min-height: 36px !important;
+  grid-template-columns: 24px minmax(0, 1fr) 30px 30px 30px !important;
+  padding: 5px 6px !important;
+  border-color: rgba(23, 32, 39, 0.1) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(246, 249, 248, 0.92)) !important;
+}
+
+.studio-window-header .overlay-grip {
+  cursor: grab;
+}
+
+.studio-window-header button {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.studio-window-body {
+  grid-template-columns: 1fr !important;
+  gap: 8px !important;
+  min-height: 0;
+  overflow: auto !important;
+  padding-right: 2px;
+  overscroll-behavior: contain;
+}
+
+.toolbar-studio-panel.expanded .studio-window-body {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-content: start;
+}
+
+.studio-window-body::-webkit-scrollbar,
+.toolbar-studio-panel .toolbar-layouts::-webkit-scrollbar,
+.workbench-canvas-scroll::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.studio-window-body::-webkit-scrollbar-thumb,
+.toolbar-studio-panel .toolbar-layouts::-webkit-scrollbar-thumb,
+.workbench-canvas-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(23, 32, 39, 0.24);
+}
+
+.toolbar-studio-panel .studio-panel-section {
+  padding: 9px !important;
+  border: 1px solid rgba(23, 32, 39, 0.09);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.studio-section-title {
+  margin-bottom: 7px;
+}
+
+.toolbar-studio-panel .toolbar-layouts {
+  display: flex !important;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.toolbar-studio-panel .layout-tab {
+  min-width: 142px !important;
+  max-width: 178px;
+  padding: 8px 10px !important;
+}
+
+.toolbar-studio-panel .layout-tab span {
+  font-size: 8px !important;
+}
+
+.toolbar-studio-panel .layout-tab strong {
+  font-size: 11px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toolbar-studio-panel .mode-toggle {
+  width: 100%;
+}
+
+.toolbar-studio-panel .role-switcher {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.toolbar-studio-panel .role-switcher button,
+.toolbar-studio-panel .mode-toggle button {
+  min-height: 34px;
+  border-radius: 8px;
+}
+
+.toolbar-studio-panel .role-capability-card {
+  margin-top: 8px;
+  padding: 9px !important;
+  border-radius: 9px;
+  background: rgba(242, 246, 245, 0.82);
+}
+
+.toolbar-studio-panel .role-capability-card p,
+.toolbar-studio-panel .role-capability-card em {
+  color: #45535b;
+}
+
+.toolbar-studio-panel .engineer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.edit-layout-drawer {
+  max-height: min(520px, calc(100dvh - 138px)) !important;
+}
+
+.edit-drawer-control {
+  height: 40px !important;
+  margin-bottom: 6px !important;
+  padding: 0 2px;
+}
+
+.edit-layout-drawer .workbench {
+  height: calc(var(--edit-drawer-height, 430px) - 68px) !important;
+}
+
+.workbench-header {
+  align-items: start !important;
+  gap: 10px !important;
+}
+
+.workbench-actions {
+  max-width: min(780px, 100%);
+  justify-content: flex-end !important;
+}
+
+.connection-palette {
+  min-width: 0 !important;
+  width: min(520px, 100%);
+}
+
+.connection-palette > div {
+  flex-wrap: wrap;
+}
+
+.equipment-sheet {
+  right: max(12px, env(safe-area-inset-right)) !important;
+  max-width: calc(100vw - 24px) !important;
+  visibility: hidden;
+  transform: translateX(18px) scale(0.98) !important;
+}
+
+.equipment-sheet.open {
+  visibility: visible;
+  transform: translateX(0) scale(1) !important;
+}
+
+@media (max-width: 620px) {
+  .toolbar-studio-panel,
+  .toolbar-studio-panel.expanded {
+    left: 8px !important;
+    top: 176px !important;
+    width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 184px) !important;
+  }
+
+  .toolbar-studio-panel.expanded .studio-window-body {
+    grid-template-columns: 1fr !important;
+  }
+}

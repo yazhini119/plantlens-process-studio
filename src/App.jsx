@@ -51,7 +51,7 @@ function layersForRole(role, currentLayers = DEFAULT_MAP_LAYERS) {
 function Workspace() {
   const { state, dispatch, activeLayout, selectedNode, activeLayoutIssues } = useProject()
   const [operatingMode, setOperatingMode] = useState('normal')
-  const [lensMode, setLensMode] = useState('meso')
+  const [lensMode, setLensMode] = useState('macro')
   const [mapLayers, setMapLayers] = useState(DEFAULT_MAP_LAYERS)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSignalTray, setShowSignalTray] = useState(false)
@@ -330,7 +330,7 @@ function Workspace() {
                 onFocusAffected={handleFocusAffected}
               />
 
-              {lensMode === 'micro' && userRole !== 'manager' ? <ParameterDrawer /> : null}
+              {lensMode === 'micro' && userRole !== 'manager' ? <ParameterDrawer onClose={() => setLensMode('macro')} /> : null}
 
               <MiniMap
                 layout={presentedLayout}
