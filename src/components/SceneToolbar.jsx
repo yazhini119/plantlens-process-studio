@@ -38,7 +38,7 @@ export function SceneToolbar({
           <button className={`icon-chip ${showMiniMap ? 'active' : ''}`} title="Mini-map" onClick={onToggleMiniMap} type="button">
             <Icon icon={MapsCircle01Icon} />
           </button>
-          <button className={`icon-chip ${showTimeline ? 'active' : ''}`} title="Fault timeline" onClick={onToggleTimeline} type="button">
+          <button className={`icon-chip ${showTimeline ? 'active' : ''}`} title="Event timeline" onClick={onToggleTimeline} type="button">
             <Icon icon={Wrench01Icon} />
           </button>
           <button className={`icon-chip ${showSections ? 'active' : ''}`} title="Plant sections" onClick={onToggleSections} type="button">

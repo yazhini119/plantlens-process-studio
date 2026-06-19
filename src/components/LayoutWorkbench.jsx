@@ -66,7 +66,6 @@ const CONNECTION_TYPES = [
   { id: 'utilityLine', label: 'Utility Line' },
 ]
 
-const CABLE_CONNECTION_TYPES = CONNECTION_TYPES.filter((type) => ['dcPower', 'acPower', 'rs485'].includes(type.id))
 function snap(value, step = 0.25) {
   return Math.round(value / step) * step
 }
@@ -243,13 +242,23 @@ export function LayoutWorkbench() {
 
   const contentWidth = Math.round((bounds.maxX - bounds.minX) * SCALE + PADDING * 2)
   const contentHeight = Math.round((bounds.maxZ - bounds.minZ) * SCALE + PADDING * 2)
-  const canvasWidth = Math.max(1120, canvasViewport.width, contentWidth)
-  const canvasHeight = Math.max(520, canvasViewport.height, contentHeight)
+  const canvasWidth = Math.max(1480, canvasViewport.width, contentWidth + 360)
+  const canvasHeight = Math.max(680, canvasViewport.height, contentHeight + 180)
 
   const projectToCanvas = (point) => ({
     x: (point[0] - bounds.minX) * SCALE + PADDING,
     y: (point[2] - bounds.minZ) * SCALE + PADDING,
   })
+
+  const routeToCanvasPoints = (route) => {
+    const points = resolveRoutePoints(route, activeLayout, state.project.library).map(projectToCanvas)
+    if (points.length < 2) return points
+    if (points.length > 2) return points
+
+    const [start, end] = points
+    const midX = Math.round((start.x + end.x) / 2)
+    return [start, { x: midX, y: start.y }, { x: midX, y: end.y }, end]
+  }
 
   const canvasToProject = (event) => {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -592,23 +601,6 @@ export function LayoutWorkbench() {
             </div>
           </div>
           <div className="workbench-actions">
-            <div className="cable-route-strip" aria-label="Cable route tools">
-              {CABLE_CONNECTION_TYPES.map((type) => (
-                <button
-                  key={type.id}
-                  type="button"
-                  className={`cable-route-chip ${connectionType === type.id ? 'active' : ''}`}
-                  data-route-type={type.id}
-                  onClick={() => {
-                    setConnectionType(type.id)
-                    setConnectionSourceId(null)
-                    dispatch({ type: 'set-active-tool', tool: 'connect' })
-                  }}
-                >
-                  {type.label}
-                </button>
-              ))}
-            </div>
             <select
               className="connection-type-select"
               value={connectionType}
@@ -648,7 +640,7 @@ export function LayoutWorkbench() {
           >
             <svg className="route-overlay" viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}>
               {activeLayout.routes.map((route) => {
-                const points = resolveRoutePoints(route, activeLayout, state.project.library).map(projectToCanvas)
+                const points = routeToCanvasPoints(route)
                 if (points.length < 2) return null
 
                 return (

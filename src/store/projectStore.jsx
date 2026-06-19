@@ -29,6 +29,8 @@ function getViewportDefaults() {
   return {
     cardPosition: { x: 16, y: 118 },
     drawerPosition: { x: Math.max(12, width - 360), y: 112 },
+    signalTrayPosition: { x: Math.max(12, Math.round((width - 520) / 2)), y: Math.max(12, height - 96) },
+    rolePanelPosition: { x: Math.max(12, width - 450), y: 96 },
     miniMapPosition: { x: Math.max(12, width - 256), y: Math.max(12, height - 168) },
     timelinePosition: { x: 16, y: Math.max(12, height - 260) },
   }
@@ -439,6 +441,18 @@ function reducer(state, action) {
       return {
         ...state,
         ui: { ...state.ui, drawerPosition: action.position },
+      }
+
+    case 'set-signal-tray-position':
+      return {
+        ...state,
+        ui: { ...state.ui, signalTrayPosition: action.position },
+      }
+
+    case 'set-role-panel-position':
+      return {
+        ...state,
+        ui: { ...state.ui, rolePanelPosition: action.position },
       }
 
     case 'set-minimap-position':
